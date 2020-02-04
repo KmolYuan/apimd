@@ -1,3 +1,6 @@
+[![Build status](https://img.shields.io/travis/KmolYuan/apimd.svg?logo=travis)](https://travis-ci.org/KmolYuan/apimd)
+[![PyPI](https://img.shields.io/pypi/v/apimd.svg)](https://pypi.org/project/apimd/)
+
 # apimd
 
 A Python API compiler for universal Markdown syntax.
