@@ -11,13 +11,15 @@ __email__ = "pyslvs@gmail.com"
 
 from typing import cast, get_type_hints, List, Set, Dict, Iterable, Callable, Any
 from types import ModuleType
-from sys import stdout, modules as sys_modules
+from sys import stdout, exc_info, modules as sys_modules
 from os import listdir, mkdir
 from os.path import join, isdir
 from importlib import import_module
+from traceback import extract_tb, FrameSummary
 from pkgutil import walk_packages
 from textwrap import dedent
 from re import sub, search
+from collections import defaultdict
 from dataclasses import is_dataclass
 from enum import Enum
 from inspect import isfunction, isclass, isgenerator, getfullargspec
@@ -57,7 +59,7 @@ def public(names: Iterable[str], init: bool = True) -> Iterable[str]:
     for name in names:
         if init:
             init = name == '__init__'
-        if init or not name.startswith('_'):
+        if not name.startswith('_') or init:
             yield name
 
 
@@ -94,7 +96,8 @@ def table_row(*items: Iterable[str]) -> str:
 def make_table(obj: Callable) -> str:
     """Make an argument table for function or method."""
     args = getfullargspec(obj)
-    hints = get_type_hints(obj)
+    hints = defaultdict(lambda: Any, get_type_hints(obj))
+    hints['self'] = " "
     args_doc = []
     type_doc = []
     all_args = []
@@ -103,7 +106,7 @@ def make_table(obj: Callable) -> str:
     # The name of '*'
     if args.varargs is not None:
         new_name = f'**{args.varargs}'
-        hints[new_name] = hints[args.varargs]
+        hints[new_name] = hints.pop(args.varargs, Any)
         all_args.append(new_name)
     elif args.kwonlyargs:
         all_args.append('*')
@@ -112,15 +115,12 @@ def make_table(obj: Callable) -> str:
     # The name of '**'
     if args.varkw is not None:
         new_name = f'**{args.varkw}'
-        hints[new_name] = hints[args.varkw]
+        hints[new_name] = hints.pop(args.varkw, Any)
         all_args.append(new_name)
     all_args.append('return')
     for arg in all_args:  # type: str
         args_doc.append(arg)
-        if arg in hints:
-            type_doc.append(get_name(hints[arg]))
-        else:
-            type_doc.append(" ")
+        type_doc.append(get_name(hints[arg]))
     doc = table_row(args_doc, type_doc)
     df = []
     if args.defaults is not None:
@@ -175,7 +175,7 @@ def switch_types(parent: Any, name: str, level: int, prefix: str = "") -> str:
         doc += '\n\n'
         hints = get_type_hints(obj)
         if hints:
-            for attr in hints.keys():
+            for attr in public(hints.keys()):
                 inner_links[f"{name}.{attr}"] = linker(name)
             doc += table_row(hints.keys(), [get_name(v) for v in hints.values()]) + '\n'
         elif Enum in obj.__mro__:
@@ -225,8 +225,10 @@ def load_file(code: str, mod: ModuleType) -> bool:
     except ImportError:
         return False
     except Exception as e:
-        logger.debug(code)
-        raise e
+        _, _, tb = exc_info()
+        stack: FrameSummary = extract_tb(tb)[-1]
+        line = code.splitlines()[int(stack.line)]
+        raise RuntimeError(f"{line}\n{e}") from None
     return True
 
 
