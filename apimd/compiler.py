@@ -9,7 +9,8 @@ __copyright__ = "Copyright (C) 2020"
 __license__ = "MIT"
 __email__ = "pyslvs@gmail.com"
 
-from typing import cast, get_type_hints, List, Set, Dict, Iterable, Callable, Any
+from typing import (cast, get_type_hints, List, Set, Dict, Iterable,
+                    Callable, Any)
 from types import ModuleType
 from sys import stdout, exc_info, modules as sys_modules
 from os import listdir, mkdir
@@ -22,19 +23,29 @@ from re import sub, search
 from collections import defaultdict
 from dataclasses import is_dataclass
 from enum import Enum
-from inspect import isfunction, isclass, isgenerator, getfullargspec
+from inspect import ismodule, isfunction, isclass, isgenerator, getfullargspec
 from logging import getLogger, basicConfig, DEBUG
 
-loaded_path: Set[str] = set()
-inner_links: Dict[str, str] = {}
 unload_modules = set(sys_modules)
 basicConfig(stream=stdout, level=DEBUG, format="%(message)s")
 logger = getLogger()
+loaded_path: Set[str] = set()
+inner_links: Dict[str, str] = {}
+doc_self: Dict[str, str] = {}
 
 
 class StandardModule(ModuleType):
     __all__: List[str]
     __path__: List[str]
+
+
+def full_name(m: StandardModule, obj: Any) -> str:
+    """Get full name of a object.
+    If m is not a module, return empty string.
+    """
+    if not ismodule(m):
+        return ""
+    return f"{m.__name__}.{obj.__name__}"
 
 
 def get_name(obj: Any) -> str:
@@ -66,7 +77,7 @@ def public(names: Iterable[str], init: bool = True) -> Iterable[str]:
 def docstring(obj: object) -> str:
     """Remove first indent of the docstring."""
     doc = obj.__doc__
-    if doc is None:
+    if doc is None or obj.__class__.__doc__ == doc:
         return ""
     two_parts = doc.split('\n', maxsplit=1)
     if len(two_parts) == 2:
@@ -177,9 +188,14 @@ def switch_types(parent: Any, name: str, level: int, prefix: str = "") -> str:
         if hints:
             for attr in public(hints.keys()):
                 inner_links[f"{name}.{attr}"] = linker(name)
-            doc += table_row(hints.keys(), [get_name(v) for v in hints.values()]) + '\n'
+            doc += table_row(
+                hints.keys(),
+                [get_name(v) for v in hints.values()]
+            ) + '\n'
         elif Enum in obj.__mro__:
-            title_doc, value_doc = zip(*[(e.name, f"`{e.value!r}`") for e in obj])
+            title_doc, value_doc = zip(*[
+                (e.name, f"`{e.value!r}`") for e in obj
+            ])
             doc += table_row(title_doc, value_doc) + '\n'
         for attr_name in public(dir(obj), not is_data_cls):
             if attr_name not in hints:
@@ -190,7 +206,10 @@ def switch_types(parent: Any, name: str, level: int, prefix: str = "") -> str:
         doc += "\n\nIs a property.\n\n"
     else:
         return ""
-    doc += docstring(obj)
+    if not ismodule(parent):
+        doc += docstring(obj)
+    else:
+        doc += doc_self.get(full_name(parent, obj), docstring(obj))
     if sub_doc:
         doc += '\n\n' + '\n\n'.join(sub_doc)
     return doc
@@ -221,7 +240,8 @@ def load_file(code: str, mod: ModuleType) -> bool:
     """Load file into the module."""
     try:
         sys_modules[get_name(mod)] = mod
-        exec(compile(code, '', 'exec', flags=annotations.compiler_flag), mod.__dict__)
+        exec(compile(code, '', 'exec',
+                     flags=annotations.compiler_flag), mod.__dict__)
     except ImportError:
         return False
     except Exception as e:
@@ -280,7 +300,12 @@ def load_root(root_name: str, root_module: str) -> str:
     doc = f"# {root_name} API\n\n"
     module_names = sorted(modules, key=get_level)
     for n in reversed(module_names):
-        load_stubs(modules[n])
+        m = modules[n]
+        for name in public(m.__all__):
+            obj = getattr(m, name)
+            if docstring(obj):
+                doc_self[full_name(m, obj)] = docstring(obj)
+        load_stubs(m)
     for n in module_names:
         m = modules[n]
         doc += f"## Module `{get_name(m)}`\n\n{docstring(m)}\n\n"
