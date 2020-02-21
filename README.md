@@ -88,7 +88,7 @@ Object attributes should be noted in the stub files or use Variable Annotations 
 ## Stubs
 
 If a module has a stub file, the stub file will be loaded instead of the module.
-So docstring should be written in stub file first.
+But docstring should be still written in module first.
 
 ## Inner links
 
