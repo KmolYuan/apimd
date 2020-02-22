@@ -9,7 +9,7 @@ __copyright__ = "Copyright (C) 2020"
 __license__ = "MIT"
 __email__ = "pyslvs@gmail.com"
 
-from typing import (cast, get_type_hints, List, Set, Dict, Iterable,
+from typing import (cast, get_type_hints, Tuple, List, Set, Dict, Iterable,
                     Callable, Any)
 from types import ModuleType
 from sys import stdout, exc_info, modules as sys_modules
@@ -23,7 +23,7 @@ from re import sub, search
 from collections import defaultdict
 from dataclasses import is_dataclass
 from enum import Enum
-from inspect import ismodule, isfunction, isclass, isgenerator, getfullargspec
+from inspect import isfunction, isclass, isgenerator, getfullargspec
 from logging import getLogger, basicConfig, DEBUG
 
 unload_modules = set(sys_modules)
@@ -31,7 +31,7 @@ basicConfig(stream=stdout, level=DEBUG, format="%(message)s")
 logger = getLogger()
 loaded_path: Set[str] = set()
 inner_links: Dict[str, str] = {}
-doc_self: Dict[str, str] = {}
+self_doc: Dict[str, str] = {}
 
 
 class StandardModule(ModuleType):
@@ -39,13 +39,11 @@ class StandardModule(ModuleType):
     __path__: List[str]
 
 
-def full_name(m: StandardModule, obj: Any) -> str:
+def full_name(parent: Any, obj: Any) -> str:
     """Get full name of a object.
     If m is not a module, return empty string.
     """
-    if not ismodule(m):
-        return ""
-    return f"{m.__name__}.{obj.__name__}"
+    return f"{get_name(parent)}.{get_name(obj)}"
 
 
 def get_name(obj: Any) -> str:
@@ -159,12 +157,41 @@ def is_staticmethod(parent: type, obj: Any) -> bool:
         raise NotImplementedError(f"please implement abstract member {name}")
 
 
+def is_classmethod(parent: type, obj: Any) -> bool:
+    """Return True if it is a class method."""
+    if not hasattr(obj, '__self__'):
+        return False
+    return obj.__self__ is parent
+
+
+def is_property(obj: Any) -> bool:
+    """Return True if it is a property."""
+    return type(obj) is property
+
+
+def is_enum(obj: Any) -> bool:
+    """Return True if is enum class."""
+    if not isclass(obj):
+        return False
+    return Enum in mro(obj)
+
+
+def mro(obj: type) -> Tuple[type, ...]:
+    """Return inherited class."""
+    return obj.__mro__
+
+
+def super_cls(obj: type) -> type:
+    """Return super class."""
+    return mro(obj)[1]
+
+
 def linker(name: str) -> str:
     """Return inner link format."""
     return name.lower().replace('.', '')
 
 
-def switch_types(parent: Any, name: str, level: int, prefix: str = "") -> str:
+def get_stub_doc(parent: Any, name: str, level: int, prefix: str = "") -> str:
     """Generate docstring by type."""
     obj = getattr(parent, name)
     if prefix:
@@ -174,16 +201,24 @@ def switch_types(parent: Any, name: str, level: int, prefix: str = "") -> str:
     sub_doc = []
     if isfunction(obj) or isgenerator(obj):
         doc += "()\n\n" + make_table(obj) + '\n'
-        if isclass(parent) and is_abstractmethod(obj):
-            doc += "Is a abstract method.\n\n"
-        if isclass(parent) and is_staticmethod(parent, obj):
-            doc += "Is a static method.\n\n"
+        if isclass(parent):
+            if is_abstractmethod(obj):
+                doc += "Is a abstract method.\n\n"
+            if is_staticmethod(parent, obj):
+                doc += "Is a static method.\n\n"
+            if is_classmethod(parent, obj):
+                doc += "Is a class method.\n\n"
     elif isclass(obj):
-        doc += f"\n\nInherited from `{get_name(obj.__mro__[1])}`."
+        doc += f"\n\nInherited from `{get_name(super_cls(obj))}`.\n\n"
         is_data_cls = is_dataclass(obj)
         if is_data_cls:
-            doc += " Is a data class."
-        doc += '\n\n'
+            doc += "Is a data class.\n\n"
+        elif is_enum(obj):
+            doc += "Is an enum class.\n\n"
+            title_doc, value_doc = zip(*[
+                (e.name, f"`{e.value!r}`") for e in obj
+            ])
+            doc += table_row(title_doc, value_doc) + '\n'
         hints = get_type_hints(obj)
         if hints:
             for attr in public(hints.keys()):
@@ -192,27 +227,39 @@ def switch_types(parent: Any, name: str, level: int, prefix: str = "") -> str:
                 hints.keys(),
                 [get_name(v) for v in hints.values()]
             ) + '\n'
-        elif Enum in obj.__mro__:
-            title_doc, value_doc = zip(*[
-                (e.name, f"`{e.value!r}`") for e in obj
-            ])
-            doc += table_row(title_doc, value_doc) + '\n'
         for attr_name in public(dir(obj), not is_data_cls):
             if attr_name not in hints:
-                sub_doc.append(switch_types(obj, attr_name, level + 1, name))
+                sub_doc.append(get_stub_doc(obj, attr_name, level + 1, name))
     elif callable(obj):
         doc += '()\n\n' + make_table(obj)
-    elif type(obj) is property:
+    elif is_property(obj):
         doc += "\n\nIs a property.\n\n"
     else:
         return ""
-    if not ismodule(parent):
-        doc += docstring(obj)
+    my_doc = docstring(obj)
+    if my_doc:
+        # Docstring in pyi
+        doc += my_doc
     else:
-        doc += doc_self.get(full_name(parent, obj), docstring(obj))
+        doc += self_doc.get(name, "")
     if sub_doc:
         doc += '\n\n' + '\n\n'.join(sub_doc)
     return doc
+
+
+def get_orig_doc(parent: Any, name: str, prefix: str = "") -> None:
+    """Preload original docstrings."""
+    obj = getattr(parent, name)
+    if prefix:
+        name = f"{prefix}.{name}"
+    doc = docstring(obj)
+    if doc:
+        self_doc[name] = doc
+    if isclass(obj):
+        hints = get_type_hints(obj)
+        for attr_name in public(dir(obj), not is_dataclass(obj)):
+            if attr_name not in hints:
+                get_orig_doc(obj, attr_name, name)
 
 
 def replace_keywords(doc: str, ignore_module: List[str]) -> str:
@@ -292,7 +339,6 @@ def load_root(root_name: str, root_module: str) -> str:
     ignore_module = ['typing', root_module]
     for info in walk_packages(root_path, root_module + '.'):
         m = import_from(info.name)
-        del sys_modules[info.name]
         name = get_name(m)
         ignore_module.append(name)
         if hasattr(m, '__all__'):
@@ -302,15 +348,13 @@ def load_root(root_name: str, root_module: str) -> str:
     for n in reversed(module_names):
         m = modules[n]
         for name in public(m.__all__):
-            obj = getattr(m, name)
-            if docstring(obj):
-                doc_self[full_name(m, obj)] = docstring(obj)
+            get_orig_doc(m, name)
         load_stubs(m)
     for n in module_names:
         m = modules[n]
         doc += f"## Module `{get_name(m)}`\n\n{docstring(m)}\n\n"
         doc += replace_keywords('\n\n'.join(
-            switch_types(m, name, 3) for name in public(m.__all__)
+            get_stub_doc(m, name, 3) for name in public(m.__all__)
         ), ignore_module) + '\n\n'
     return doc.rstrip() + '\n'
 
@@ -373,8 +417,6 @@ def gen_api(
             logger.debug(f"Write file: {path}")
             with open(path, 'w+', encoding='utf-8') as f:
                 f.write(doc)
-        # Remove inner link
-        inner_links.clear()
         # Unload modules
         for m_name in set(sys_modules) - unload_modules:
             del sys_modules[m_name]
