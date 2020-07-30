@@ -9,12 +9,12 @@ __copyright__ = "Copyright (C) 2020"
 __license__ = "MIT"
 __email__ = "pyslvs@gmail.com"
 
-from typing import (cast, get_type_hints, Tuple, List, Set, Dict, Iterable,
+from typing import (get_type_hints, Tuple, List, Set, Dict, Iterable,
                     Callable, Any)
 from types import ModuleType
 from sys import stdout, exc_info, modules as sys_modules
 from os import listdir, mkdir
-from os.path import join, isdir
+from os.path import join, isdir, sep
 from importlib import import_module
 from traceback import extract_tb, FrameSummary
 from pkgutil import walk_packages
@@ -32,11 +32,6 @@ logger = getLogger()
 loaded_path: Set[str] = set()
 inner_links: Dict[str, str] = {}
 self_doc: Dict[str, str] = {}
-
-
-class StandardModule(ModuleType):
-    __all__: List[str]
-    __path__: List[str]
 
 
 def full_name(parent: Any, obj: Any) -> str:
@@ -63,12 +58,31 @@ def get_name(obj: Any) -> str:
     return name.replace('[', r'\[')
 
 
+def is_root(m: ModuleType) -> bool:
+    """Return true is the module is a root."""
+    return m.__file__.rsplit(sep, maxsplit=1)[-1] == '__init__.py'
+
+
 def public(names: Iterable[str], init: bool = True) -> Iterable[str]:
     """Yield public names only."""
     for name in names:
         if init:
             init = name == '__init__'
         if not name.startswith('_') or init:
+            yield name
+
+
+def local_vars(m: ModuleType) -> Iterable[str]:
+    """Get local variables from the module."""
+    if hasattr(m, '__all__'):
+        yield from m.__all__
+    for name in m.__dict__:
+        obj = getattr(m, name)
+        if (
+            docstring(obj) and isinstance(obj, ModuleType)
+            and hasattr(obj, '__module__')
+            and obj.__module__.startswith(m.__name__)
+        ):
             yield name
 
 
@@ -274,13 +288,13 @@ def replace_keywords(doc: str, ignore_module: List[str]) -> str:
     return doc
 
 
-def import_from(name: str) -> StandardModule:
+def import_from(name: str) -> ModuleType:
     """Import the module from name."""
     try:
-        return cast(StandardModule, import_module(name))
+        return import_module(name)
     except ImportError:
         logger.warn(f"load module failed: {name}")
-        return StandardModule(name)
+        return ModuleType(name)
 
 
 def load_file(code: str, mod: ModuleType) -> bool:
@@ -299,7 +313,7 @@ def load_file(code: str, mod: ModuleType) -> bool:
     return True
 
 
-def load_stubs(m: StandardModule) -> None:
+def load_stubs(m: ModuleType) -> None:
     """Load all pyi files."""
     modules = {}
     root = m.__path__[0]
@@ -341,20 +355,21 @@ def load_root(root_name: str, root_module: str) -> str:
         m = import_from(info.name)
         name = get_name(m)
         ignore_module.append(name)
-        if hasattr(m, '__all__'):
-            modules[name] = m
+        modules[name] = m
     doc = f"# {root_name} API\n\n"
     module_names = sorted(modules, key=get_level)
     for n in reversed(module_names):
         m = modules[n]
-        for name in public(m.__all__):
+        if not is_root(m):
+            continue
+        for name in public(local_vars(m)):
             get_orig_doc(m, name)
         load_stubs(m)
     for n in module_names:
         m = modules[n]
         doc += f"## Module `{get_name(m)}`\n\n{docstring(m)}\n\n"
         doc += replace_keywords('\n\n'.join(
-            get_stub_doc(m, name, 3) for name in public(m.__all__)
+            get_stub_doc(m, name, 3) for name in public(local_vars(m))
         ), ignore_module) + '\n\n'
     return doc.rstrip() + '\n'
 
