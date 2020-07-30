@@ -78,6 +78,7 @@ def local_vars(m: ModuleType) -> Iterable[str]:
         yield from m.__all__
     for name in m.__dict__:
         obj = getattr(m, name)
+        # TODO: Local variables conditions
         if (
             docstring(obj) and isinstance(obj, ModuleType)
             and hasattr(obj, '__module__')
@@ -348,20 +349,20 @@ def get_level(name: str) -> int:
 
 def load_root(root_name: str, root_module: str) -> str:
     """Root module docstring."""
-    modules = {root_name: import_from(root_module)}
-    root_path = modules[root_name].__path__
+    m = import_from(root_module)
+    modules = {get_name(m): m}
     ignore_module = ['typing', root_module]
-    for info in walk_packages(root_path, root_module + '.'):
+    for info in walk_packages(m.__path__, root_module + '.'):
         m = import_from(info.name)
         name = get_name(m)
         ignore_module.append(name)
+        if not is_root(m):
+            continue
         modules[name] = m
     doc = f"# {root_name} API\n\n"
     module_names = sorted(modules, key=get_level)
     for n in reversed(module_names):
         m = modules[n]
-        if not is_root(m):
-            continue
         for name in public(local_vars(m)):
             get_orig_doc(m, name)
         load_stubs(m)
