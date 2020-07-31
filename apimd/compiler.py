@@ -34,6 +34,7 @@ logger = getLogger()
 loaded_path: Set[str] = set()
 inner_links: Dict[str, str] = {}
 self_doc: Dict[str, str] = {}
+alias: Dict[str, str] = {}
 
 
 def full_name(parent: Any, obj: Any) -> str:
@@ -77,14 +78,15 @@ def local_vars(m: ModuleType) -> Iterable[str]:
     if hasattr(m, '__all__'):
         yield from m.__all__
         return
-    for name in m.__dict__:
-        obj = getattr(m, name)
+    for name, obj in m.__dict__.items():
         if (
             (docstring(obj) or self_doc.get(name, ""))
             and not isinstance(obj, ModuleType)
             and hasattr(obj, '__module__')
             and obj.__module__.startswith(m.__name__)
         ):
+            if name != get_name(obj):
+                alias[name] = get_name(obj)
             yield name
 
 
@@ -186,10 +188,15 @@ def is_property(obj: Any) -> bool:
 
 
 def is_enum(obj: Any) -> bool:
-    """Return True if is enum class."""
+    """Return True if it is enum class."""
     if not isclass(obj):
         return False
     return Enum in mro(obj)
+
+
+def is_alias(name: str) -> bool:
+    """Return True if it is an alias."""
+    return name in alias and alias[name] in self_doc
 
 
 def mro(obj: type) -> Tuple[type, ...]:
@@ -223,7 +230,9 @@ def get_stub_doc(parent: Any, name: str, level: int, prefix: str = "") -> str:
     inner_links[name] = linker(name)
     doc = '#' * level + f" {escape(name)}"
     sub_doc = []
-    if isfunction(obj) or isgenerator(obj):
+    if is_alias(name):
+        doc += f"\n\nIs alias of [{alias[name]}].\n\n"
+    elif isfunction(obj) or isgenerator(obj):
         doc += "()\n\n" + make_table(obj) + '\n'
         if isclass(parent):
             if is_abstractmethod(obj):
@@ -444,4 +453,5 @@ def gen_api(
         # Unload modules
         for m_name in set(sys_modules) - unload_modules:
             del sys_modules[m_name]
+        alias.clear()
         self_doc.clear()
