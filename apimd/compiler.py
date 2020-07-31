@@ -9,8 +9,10 @@ __copyright__ = "Copyright (C) 2020"
 __license__ = "MIT"
 __email__ = "pyslvs@gmail.com"
 
-from typing import (get_type_hints, Tuple, List, Set, Dict, Iterable,
-                    Callable, Any)
+from typing import (
+    get_type_hints, Tuple, List, Set, Dict, Iterable,
+    Callable, Any,
+)
 from types import ModuleType
 from sys import stdout, exc_info, modules as sys_modules
 from os import listdir, mkdir
@@ -66,9 +68,7 @@ def is_root(m: ModuleType) -> bool:
 def public(names: Iterable[str], init: bool = True) -> Iterable[str]:
     """Yield public names only."""
     for name in names:
-        if init:
-            init = name == '__init__'
-        if not name.startswith('_') or init:
+        if not name.startswith('_') or (init and name == '__init__'):
             yield name
 
 
@@ -76,18 +76,19 @@ def local_vars(m: ModuleType) -> Iterable[str]:
     """Get local variables from the module."""
     if hasattr(m, '__all__'):
         yield from m.__all__
+        return
     for name in m.__dict__:
         obj = getattr(m, name)
-        # TODO: Local variables conditions
         if (
-            docstring(obj) and isinstance(obj, ModuleType)
+            (docstring(obj) or self_doc.get(name, ""))
+            and not isinstance(obj, ModuleType)
             and hasattr(obj, '__module__')
             and obj.__module__.startswith(m.__name__)
         ):
             yield name
 
 
-def docstring(obj: object) -> str:
+def docstring(obj: Any) -> str:
     """Remove first indent of the docstring."""
     doc = obj.__doc__
     if doc is None or obj.__class__.__doc__ == doc:
@@ -168,8 +169,8 @@ def is_staticmethod(parent: type, obj: Any) -> bool:
     name = get_name(obj)
     if name in parent.__dict__:
         return type(parent.__dict__[name]) is staticmethod
-    else:
-        raise NotImplementedError(f"please implement abstract member {name}")
+    # Assume it is implemented
+    return True
 
 
 def is_classmethod(parent: type, obj: Any) -> bool:
@@ -206,13 +207,21 @@ def linker(name: str) -> str:
     return name.lower().replace('.', '')
 
 
+def escape(doc: str) -> str:
+    # No underline or brackets, escape twice
+    for _ in range(2):
+        doc = sub(r"(?<!\\)([_\[])((?:\\[_\[])*[a-zA-Z]+[_\]]+)", r"\\\1\2",
+                  doc)
+    return doc
+
+
 def get_stub_doc(parent: Any, name: str, level: int, prefix: str = "") -> str:
     """Generate docstring by type."""
     obj = getattr(parent, name)
     if prefix:
         name = f"{prefix}.{name}"
     inner_links[name] = linker(name)
-    doc = '#' * level + f" {name}"
+    doc = '#' * level + f" {escape(name)}"
     sub_doc = []
     if isfunction(obj) or isgenerator(obj):
         doc += "()\n\n" + make_table(obj) + '\n'
@@ -230,9 +239,8 @@ def get_stub_doc(parent: Any, name: str, level: int, prefix: str = "") -> str:
             doc += "Is a data class.\n\n"
         elif is_enum(obj):
             doc += "Is an enum class.\n\n"
-            title_doc, value_doc = zip(*[
-                (e.name, f"`{e.value!r}`") for e in obj
-            ])
+            title_doc, value_doc = zip(*[(e.name, f"`{e.value!r}`")
+                                         for e in obj])
             doc += table_row(title_doc, value_doc) + '\n'
         hints = get_type_hints(obj)
         if hints:
@@ -263,7 +271,7 @@ def get_stub_doc(parent: Any, name: str, level: int, prefix: str = "") -> str:
 
 
 def get_orig_doc(parent: Any, name: str, prefix: str = "") -> None:
-    """Preload original docstrings."""
+    """Preload original docstrings to global container "self_doc"."""
     obj = getattr(parent, name)
     if prefix:
         name = f"{prefix}.{name}"
@@ -301,9 +309,9 @@ def import_from(name: str) -> ModuleType:
 def load_file(code: str, mod: ModuleType) -> bool:
     """Load file into the module."""
     try:
-        sys_modules[get_name(mod)] = mod
         exec(compile(code, '', 'exec',
                      flags=annotations.compiler_flag), mod.__dict__)
+        sys_modules[get_name(mod)] = mod
     except ImportError:
         return False
     except Exception as e:
@@ -361,14 +369,14 @@ def load_root(root_name: str, root_module: str) -> str:
         modules[name] = m
     doc = f"# {root_name} API\n\n"
     module_names = sorted(modules, key=get_level)
-    for n in reversed(module_names):
-        m = modules[n]
-        for name in public(local_vars(m)):
-            get_orig_doc(m, name)
+    for name in reversed(module_names):
+        m = modules[name]
+        for vname in public(local_vars(m)):
+            get_orig_doc(m, vname)
         load_stubs(m)
-    for n in module_names:
-        m = modules[n]
-        doc += f"## Module `{get_name(m)}`\n\n{docstring(m)}\n\n"
+    for name in module_names:
+        m = modules[name]
+        doc += f"## Module `{name}`\n\n{docstring(m)}\n\n"
         doc += replace_keywords('\n\n'.join(
             get_stub_doc(m, name, 3) for name in public(local_vars(m))
         ), ignore_module) + '\n\n'
@@ -436,3 +444,4 @@ def gen_api(
         # Unload modules
         for m_name in set(sys_modules) - unload_modules:
             del sys_modules[m_name]
+        self_doc.clear()
