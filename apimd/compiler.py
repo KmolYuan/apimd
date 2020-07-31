@@ -10,8 +10,7 @@ __license__ = "MIT"
 __email__ = "pyslvs@gmail.com"
 
 from typing import (
-    get_type_hints, Tuple, List, Set, Dict, Iterable,
-    Callable, Any,
+    get_type_hints, Tuple, List, Set, Dict, Iterable, Callable, Any,
 )
 from types import ModuleType
 from sys import stdout, exc_info, modules as sys_modules
@@ -231,7 +230,7 @@ def get_stub_doc(parent: Any, name: str, level: int, prefix: str = "") -> str:
     doc = '#' * level + f" {escape(name)}"
     sub_doc = []
     if is_alias(name):
-        doc += f"\n\nIs alias of [{alias[name]}].\n\n"
+        doc += f"\n\nAlias to [{alias[name]}].\n\n"
     elif isfunction(obj) or isgenerator(obj):
         doc += "()\n\n" + make_table(obj) + '\n'
         if isclass(parent):
