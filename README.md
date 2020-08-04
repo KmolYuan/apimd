@@ -48,7 +48,7 @@ Multiple modules are supported either.
 apimd module1 module2 -d out_path
 ```
 
-If you just want to test, use dry run.
+If you just want to show output, use dry run mode.
 
 ```bash
 apimd module --dry
@@ -64,18 +64,19 @@ from those "public" objects:
 + Generators
 + Classes and its methods
 
-According to PEP 8, "**public**" means a name can't starts with underscore symbol "`_`".
-And the magic methods are not "public" too, apart from `__init__` method.
+According to PEP 8, "**public**" means a name can't starts with underscore symbol "`_`",
+and the magic methods will be excluded, apart from `__init__` method.
 ([Naming Conventions])
 
 Builtins object (`int`, `str`, `list`, `dict`, etc.) has no docstring their owned.
 So even they are public name style or listed in `__all__`,
 this compiler will still skip them (like `__version__` or `MY_GLOBAL`).
 Please pack them into functions or classes such as `Enum`,
-or mention them in the docstring of root module.
+or mention them in the docstring of root module `__init__.py`.
 
-In module wise, a package force required a list object `__all__` to show all of
-global names to prevent external imported names and `from m import *` syntax.
+A root package force required a list object `__all__` to show all of global names
+to prevent wildcard import syntax (`from ... import *`).
+This compiler will not search a non-root package unless add a `__all__` list.
 ([Global Variable Names])
 
 This compiler can detect properties, class attributes, static methods and abstract methods as well.
@@ -88,10 +89,10 @@ Object attributes should be noted in the stub files or use Variable Annotations 
 ## Stubs
 
 If a module has a stub file, the stub file will be loaded instead of the module.
-But docstring should be still written in module first.
+Docstrings should still be written in the module first.
 
 ## Inner links
 
 The docstring can refer the names in the same module or same class.
 Use `[name]`, `[class.attribute]` or `[attribute]` syntax to refer them.
-But if attribute name is conflict with global name, the global name will preferred.
+If attribute name is conflict with global names, the global name is preferred.
