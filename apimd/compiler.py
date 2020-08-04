@@ -235,7 +235,7 @@ def get_stub_doc(parent: Any, name: str, level: int, prefix: str = "") -> str:
         doc += "()\n\n" + make_table(obj) + '\n'
         if isclass(parent):
             if is_abstractmethod(obj):
-                doc += "Is a abstract method.\n\n"
+                doc += "Is an abstract method.\n\n"
             if is_staticmethod(parent, obj):
                 doc += "Is a static method.\n\n"
             if is_classmethod(parent, obj):
