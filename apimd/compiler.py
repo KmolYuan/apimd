@@ -302,7 +302,7 @@ def get_stub_doc(parent: Any, name: str, level: int, prefix: str = "") -> str:
     return doc
 
 
-def get_orig_doc(parent: Any, name: str, prefix: str = "") -> None:
+def cache_orig_doc(parent: Any, name: str, prefix: str = "") -> None:
     """Preload original docstrings to global container "self_doc"."""
     obj = getattr(parent, name)
     if prefix:
@@ -314,7 +314,7 @@ def get_orig_doc(parent: Any, name: str, prefix: str = "") -> None:
         hints = get_type_hints(obj)
         for attr_name in public(dir(obj), not is_dataclass(obj)):
             if attr_name not in hints:
-                get_orig_doc(obj, attr_name, name)
+                cache_orig_doc(obj, attr_name, name)
 
 
 def replace_keywords(doc: str, ignore_module: List[str]) -> str:
@@ -407,7 +407,7 @@ def load_root(root_name: str, root_module: str) -> str:
     for name in reversed(module_names):
         m = modules[name]
         for vname in public(local_vars(m)):
-            get_orig_doc(m, vname)
+            cache_orig_doc(m, vname)
         load_stubs(m)
     for name in module_names:
         m = modules[name]
@@ -420,11 +420,7 @@ def load_root(root_name: str, root_module: str) -> str:
 
 def basename(name: str) -> str:
     """Get base name."""
-    sname = name.rsplit('.', maxsplit=1)
-    if len(sname) == 1:
-        return name
-    else:
-        return sname[1]
+    return name.rsplit('.', maxsplit=1)[-1]
 
 
 def ref_link(doc: str) -> str:
