@@ -10,7 +10,7 @@ __license__ = "MIT"
 __email__ = "pyslvs@gmail.com"
 
 from typing import (
-    get_type_hints, Tuple, List, Set, Dict, Iterable, Callable, Any,
+    get_type_hints, cast, Tuple, List, Set, Dict, Iterable, Callable, Any,
 )
 from types import ModuleType
 from sys import stdout, exc_info, modules as sys_modules
@@ -34,6 +34,14 @@ loaded_path: Set[str] = set()
 inner_links: Dict[str, str] = {}
 self_doc: Dict[str, str] = {}
 alias: Dict[str, str] = {}
+
+
+class PathModule(ModuleType):
+    __path__: List[str]
+
+
+class PubModule(PathModule):
+    __all__: List[str]
 
 
 def full_name(parent: Any, obj: Any) -> str:
@@ -75,7 +83,7 @@ def public(names: Iterable[str], init: bool = True) -> Iterable[str]:
 def local_vars(m: ModuleType) -> Iterable[str]:
     """Get local variables from the module."""
     if hasattr(m, '__all__'):
-        yield from m.__all__
+        yield from cast(PubModule, m).__all__
         return
     for name, obj in m.__dict__.items():
         if (
@@ -330,7 +338,7 @@ def load_file(code: str, mod: ModuleType) -> bool:
     return True
 
 
-def load_stubs(m: ModuleType) -> None:
+def load_stubs(m: PathModule) -> None:
     """Load all pyi files."""
     modules = {}
     root = m.__path__[0]
@@ -366,6 +374,9 @@ def get_level(name: str) -> int:
 def load_root(root_name: str, root_module: str) -> str:
     """Root module docstring."""
     m = import_from(root_module)
+    if not hasattr(m, '__path__'):
+        raise ImportError("not a third party package")
+    m = cast(PathModule, m)
     modules = {get_name(m): m}
     ignore_module = ['typing', root_module]
     for info in walk_packages(m.__path__, root_module + '.'):
@@ -374,7 +385,7 @@ def load_root(root_name: str, root_module: str) -> str:
         ignore_module.append(name)
         if not is_root(m):
             continue
-        modules[name] = m
+        modules[name] = cast(PathModule, m)
     doc = f"# {root_name} API\n\n"
     module_names = sorted(modules, key=get_level)
     for name in reversed(module_names):
