@@ -44,8 +44,13 @@ class PubModule(PathModule):
     __all__: List[str]
 
 
+class GenericClass(type):  # Protocol
+    __orig_bases__: Tuple[type, ...]
+    __parameters__: Tuple[Any]
+
+
 def full_name(parent: Any, obj: Any) -> str:
-    """Get full name of a object.
+    """Get full name of an object.
     If m is not a module, return empty string.
     """
     return f"{get_name(parent)}.{get_name(obj)}"
@@ -206,6 +211,13 @@ def is_alias(name: str) -> bool:
     return name in alias and alias[name] in self_doc
 
 
+def parameters(obj: type) -> Tuple[Any, ...]:
+    """Get generic parameters."""
+    if hasattr(obj, '__parameters__'):
+        return cast(GenericClass, obj).__parameters__
+    return ()
+
+
 def mro(obj: type) -> Tuple[type, ...]:
     """Return inherited class."""
     return obj.__mro__
@@ -249,7 +261,11 @@ def get_stub_doc(parent: Any, name: str, level: int, prefix: str = "") -> str:
             if is_classmethod(parent, obj):
                 doc += "Is a class method.\n\n"
     elif isclass(obj):
-        doc += f"\n\nInherited from `{get_name(super_cls(obj))}`.\n\n"
+        doc += f"\n\nInherited from `{get_name(super_cls(obj))}`."
+        ts = parameters(obj)
+        if ts:
+            doc += f" Parameters: {', '.join(f'`{t}`' for t in ts)}"
+        doc += '\n\n'
         is_data_cls = is_dataclass(obj)
         if is_data_cls:
             doc += "Is a data class.\n\n"
