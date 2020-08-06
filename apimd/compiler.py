@@ -142,7 +142,7 @@ def make_table(obj: Callable) -> str:
     type_doc = []
     all_args = []
     # Positional arguments
-    all_args.extend(args.args or [])
+    all_args.extend(args.args)
     # The name of '*'
     if args.varargs is not None:
         new_name = f'**{args.varargs}'
@@ -242,6 +242,27 @@ def escape(doc: str) -> str:
     return doc
 
 
+def interpret_mode(doc: str) -> str:
+    """Replace interpreter syntax."""
+    stop = False
+    for line in doc.split('\n'):
+        if line.startswith(">>> "):
+            stop = True
+            if not stop:
+                # TODO: Implement here
+                pass
+    return doc
+
+
+def get_my_doc(obj: Any, name: str) -> str:
+    """Return self or stub docstring."""
+    my_doc = docstring(obj)
+    if my_doc:
+        # Docstring in pyi
+        return my_doc
+    return self_doc.get(name, "")
+
+
 def get_stub_doc(parent: Any, name: str, level: int, prefix: str = "") -> str:
     """Generate docstring by type."""
     obj = getattr(parent, name)
@@ -292,13 +313,9 @@ def get_stub_doc(parent: Any, name: str, level: int, prefix: str = "") -> str:
         doc += "\n\nIs a property.\n\n"
     else:
         return ""
-    my_doc = docstring(obj)
-    if my_doc:
-        # Docstring in pyi
-        doc += my_doc
-    else:
-        doc += self_doc.get(name, "")
+    doc += interpret_mode(get_my_doc(obj, name))
     if sub_doc:
+        # The docstring of attributes
         doc += '\n\n' + '\n\n'.join(sub_doc)
     return doc
 
