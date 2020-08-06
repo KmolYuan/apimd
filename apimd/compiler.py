@@ -200,6 +200,11 @@ def is_property(obj: Any) -> bool:
     return type(obj) is property
 
 
+def is_callable(obj: Any) -> bool:
+    """Return True if it is a callable object."""
+    return callable(obj)
+
+
 def is_enum(obj: Any) -> bool:
     """Return True if it is enum class."""
     if not isclass(obj):
@@ -313,10 +318,10 @@ def get_stub_doc(parent: Any, name: str, level: int, prefix: str = "") -> str:
         for attr_name in public(dir(obj), not is_data_cls):
             if attr_name not in hints:
                 sub_doc.append(get_stub_doc(obj, attr_name, level + 1, name))
-    elif callable(obj):
-        doc += '()\n\n' + make_table(obj)
     elif is_property(obj):
         doc += "\n\nIs a property.\n\n"
+    elif is_callable(obj):
+        doc += '()\n\n' + make_table(obj)
     else:
         return ""
     doc += '\n'.join(interpret_mode(get_my_doc(obj, name)))
