@@ -242,16 +242,22 @@ def escape(doc: str) -> str:
     return doc
 
 
-def interpret_mode(doc: str) -> str:
+def interpret_mode(doc: str) -> Iterable[str]:
     """Replace interpreter syntax."""
-    stop = False
-    for line in doc.split('\n'):
-        if line.startswith(">>> "):
-            stop = True
-            if not stop:
-                # TODO: Implement here
-                pass
-    return doc
+    keep = False
+    lines = doc.split('\n')
+    for i, line in enumerate(lines):
+        signed = line.startswith(">>> ")
+        if signed and not keep:
+            yield "```python"
+            keep = True
+        elif not signed and keep:
+            yield "```\n"
+            keep = False
+        yield line
+        if signed and i == len(lines) - 1:
+            yield "```\n"
+            keep = False
 
 
 def get_my_doc(obj: Any, name: str) -> str:
@@ -313,7 +319,7 @@ def get_stub_doc(parent: Any, name: str, level: int, prefix: str = "") -> str:
         doc += "\n\nIs a property.\n\n"
     else:
         return ""
-    doc += interpret_mode(get_my_doc(obj, name))
+    doc += '\n'.join(interpret_mode(get_my_doc(obj, name)))
     if sub_doc:
         # The docstring of attributes
         doc += '\n\n' + '\n\n'.join(sub_doc)
