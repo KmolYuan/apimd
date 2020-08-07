@@ -10,7 +10,7 @@ __license__ = "MIT"
 __email__ = "pyslvs@gmail.com"
 
 from typing import (
-    get_type_hints, cast, Tuple, List, Set, Dict, Iterable, Callable, Any,
+    get_type_hints, cast, Tuple, List, Set, Dict, Iterable, Callable, Any, Type
 )
 from types import ModuleType
 from sys import stdout, exc_info, modules as sys_modules
@@ -265,6 +265,23 @@ def interpret_mode(doc: str) -> Iterable[str]:
             keep = False
 
 
+def get_type_doc(obj: type) -> str:
+    """Get the doc string for a type."""
+    doc = f"\n\nInherited from `{get_name(super_cls(obj))}`."
+    ts = parameters(obj)
+    if ts:
+        doc += f" Parameters: {', '.join(f'`{t}`' for t in ts)}"
+    doc += '\n\n'
+    if is_dataclass(obj):
+        doc += "Is a data class.\n\n"
+    elif is_enum(obj):
+        doc += "Is an enum class.\n\n"
+        title_doc, value_doc = zip(*[(e.name, f"`{e.value!r}`")
+                                     for e in cast(Type[Enum], obj)])
+        doc += table_row(title_doc, value_doc) + '\n'
+    return doc
+
+
 def get_my_doc(obj: Any, name: str) -> str:
     """Return self or stub docstring."""
     my_doc = docstring(obj)
@@ -294,19 +311,7 @@ def get_stub_doc(parent: Any, name: str, level: int, prefix: str = "") -> str:
             if is_classmethod(parent, obj):
                 doc += "Is a class method.\n\n"
     elif isclass(obj):
-        doc += f"\n\nInherited from `{get_name(super_cls(obj))}`."
-        ts = parameters(obj)
-        if ts:
-            doc += f" Parameters: {', '.join(f'`{t}`' for t in ts)}"
-        doc += '\n\n'
-        is_data_cls = is_dataclass(obj)
-        if is_data_cls:
-            doc += "Is a data class.\n\n"
-        elif is_enum(obj):
-            doc += "Is an enum class.\n\n"
-            title_doc, value_doc = zip(*[(e.name, f"`{e.value!r}`")
-                                         for e in obj])
-            doc += table_row(title_doc, value_doc) + '\n'
+        doc += get_type_doc(obj)
         hints = get_type_hints(obj)
         if hints:
             for attr in public(hints.keys()):
@@ -315,7 +320,7 @@ def get_stub_doc(parent: Any, name: str, level: int, prefix: str = "") -> str:
                 hints.keys(),
                 [get_name(v) for v in hints.values()]
             ) + '\n'
-        for attr_name in public(dir(obj), not is_data_cls):
+        for attr_name in public(dir(obj), not is_dataclass(obj)):
             if attr_name not in hints:
                 sub_doc.append(get_stub_doc(obj, attr_name, level + 1, name))
     elif is_property(obj):
