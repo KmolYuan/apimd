@@ -259,7 +259,7 @@ def interpret_mode(doc: str) -> Iterable[str]:
         elif not signed and keep:
             yield "```\n"
             keep = False
-        yield line
+        yield line.strip(">>> ")
         if signed and i == len(lines) - 1:
             yield "```\n"
             keep = False
