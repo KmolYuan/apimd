@@ -13,8 +13,8 @@ from typing import (
     get_type_hints, cast, Tuple, List, Set, Dict, Iterable, Callable, Any, Type
 )
 from types import ModuleType
-from sys import stdout, exc_info, modules as sys_modules
-from os import listdir, mkdir
+from sys import stdout, exc_info, path as sys_path, modules as sys_modules
+from os import listdir, mkdir, getcwd
 from os.path import join, isdir, sep
 from importlib import import_module
 from traceback import extract_tb, FrameSummary
@@ -27,13 +27,14 @@ from enum import Enum
 from inspect import isfunction, isclass, isgenerator, getfullargspec
 from logging import getLogger, basicConfig, DEBUG
 
+sys_path.insert(0, getcwd())
 unload_modules = set(sys_modules)
 basicConfig(stream=stdout, level=DEBUG, format="%(message)s")
 logger = getLogger()
-loaded_path: Set[str] = set()
-inner_links: Dict[str, str] = {}
-self_doc: Dict[str, str] = {}
-alias: Dict[str, str] = {}
+LOADED_PATH: Set[str] = set()
+INNER_LINKS: Dict[str, str] = {}
+ORIG_DOC: Dict[str, str] = {}
+ALIAS: Dict[str, str] = {}
 
 
 class PathModule(ModuleType):
@@ -70,13 +71,13 @@ def get_name(obj: Any) -> str:
         name = obj
     else:
         name = repr(obj)
-    return name.replace('[', r'\[')
+    return name
 
 
 def is_root(m: ModuleType) -> bool:
     """Return true if the module is a root."""
-    return (hasattr(m, '__all__')
-            or m.__file__.rsplit(sep, maxsplit=1)[-1] == '__init__.py')
+    file_name = m.__file__.rsplit(sep, maxsplit=1)[-1]
+    return hasattr(m, '__all__') or file_name == '__init__.py'
 
 
 def public(names: Iterable[str], init: bool = True) -> Iterable[str]:
@@ -93,13 +94,13 @@ def local_vars(m: ModuleType) -> Iterable[str]:
         return
     for name, obj in m.__dict__.items():
         if (
-            (docstring(obj) or self_doc.get(name, ""))
+            get_my_doc(obj, name)
             and not isinstance(obj, ModuleType)
             and hasattr(obj, '__module__')
             and obj.__module__.startswith(m.__name__)
         ):
             if name != get_name(obj):
-                alias[name] = get_name(obj)
+                ALIAS[name] = get_name(obj)
             yield name
 
 
@@ -108,6 +109,7 @@ def docstring(obj: Any) -> str:
     doc = obj.__doc__
     if doc is None or obj.__class__.__doc__ == doc:
         return ""
+    doc = cast(str, doc)
     two_parts = doc.split('\n', maxsplit=1)
     if len(two_parts) == 2:
         doc = two_parts[0] + '\n' + dedent(two_parts[1])
@@ -123,13 +125,13 @@ def table_row(*items: Iterable[str]) -> str:
 
     if len(items) == 0:
         raise ValueError("the number of rows is not enough")
-    doc = table(items[0])
+    doc = table(escape(name) for name in items[0])
     if len(items) == 1:
         return doc
     line = (':' + '-' * (len(s) if len(s) > 3 else 3) + ':' for s in items[0])
     doc += table(line, False)
     for item in items[1:]:
-        doc += table(item)
+        doc += table(escape(name) for name in item)
     return doc
 
 
@@ -214,7 +216,7 @@ def is_enum(obj: Any) -> bool:
 
 def is_alias(name: str) -> bool:
     """Return True if it is an alias."""
-    return name in alias and alias[name] in self_doc
+    return name in ALIAS and ALIAS[name] in ORIG_DOC
 
 
 def parameters(obj: type) -> Tuple[Any, ...]:
@@ -239,12 +241,14 @@ def linker(name: str) -> str:
     return name.lower().replace('.', '')
 
 
-def escape(doc: str) -> str:
-    # No underline or brackets, escape twice
-    for _ in range(2):
-        doc = sub(r"(?<!\\)([_\[])((?:\\[_\[])*[a-zA-Z]+[_\]]+)", r"\\\1\2",
-                  doc)
-    return doc
+def escape(s: str) -> str:
+    """Valid Markdown name."""
+    while True:
+        r = sub(r"(?<!\\)([_\[])((?:[a-zA-Z., ]*\\[_\[])*~?[a-zA-Z., ]+[_\]]+)",
+                r"\\\1\2", s)
+        if r == s:
+            return r
+        s = r
 
 
 def interpret_mode(doc: str) -> Iterable[str]:
@@ -253,13 +257,15 @@ def interpret_mode(doc: str) -> Iterable[str]:
     lines = doc.split('\n')
     for i, line in enumerate(lines):
         signed = line.startswith(">>> ")
-        if signed and not keep:
-            yield "```python"
-            keep = True
-        elif not signed and keep:
+        if signed:
+            line = line[len(">>> "):]
+            if not keep:
+                yield "```python"
+                keep = True
+        elif keep:
             yield "```\n"
             keep = False
-        yield line.strip(">>> ")
+        yield line
         if signed and i == len(lines) - 1:
             yield "```\n"
             keep = False
@@ -282,13 +288,23 @@ def get_type_doc(obj: type) -> str:
     return doc
 
 
+def get_method_doc(parent: Any, obj: Any) -> str:
+    """Get method's docstring."""
+    if not isclass(parent):
+        return ""
+    doc = ""
+    if is_abstractmethod(obj):
+        doc += "Is an abstract method.\n\n"
+    if is_staticmethod(parent, obj):
+        doc += "Is a static method.\n\n"
+    if is_classmethod(parent, obj):
+        doc += "Is a class method.\n\n"
+    return doc
+
+
 def get_my_doc(obj: Any, name: str) -> str:
-    """Return self or stub docstring."""
-    my_doc = docstring(obj)
-    if my_doc:
-        # Docstring in pyi
-        return my_doc
-    return self_doc.get(name, "")
+    """Return self or stub docstring from PYI or original source."""
+    return docstring(obj) or ORIG_DOC.get(name, "")
 
 
 def get_stub_doc(parent: Any, name: str, level: int, prefix: str = "") -> str:
@@ -296,26 +312,19 @@ def get_stub_doc(parent: Any, name: str, level: int, prefix: str = "") -> str:
     obj = getattr(parent, name)
     if prefix:
         name = f"{prefix}.{name}"
-    inner_links[name] = linker(name)
+    INNER_LINKS[name] = linker(name)
     doc = '#' * level + f" {escape(name)}"
     sub_doc = []
     if is_alias(name):
-        doc += f"\n\nAlias to [{alias[name]}].\n\n"
+        doc += f"\n\nAlias to [{ALIAS[name]}].\n\n"
     elif isfunction(obj) or isgenerator(obj):
-        doc += "()\n\n" + make_table(obj) + '\n'
-        if isclass(parent):
-            if is_abstractmethod(obj):
-                doc += "Is an abstract method.\n\n"
-            if is_staticmethod(parent, obj):
-                doc += "Is a static method.\n\n"
-            if is_classmethod(parent, obj):
-                doc += "Is a class method.\n\n"
+        doc += "()\n\n" + make_table(obj) + '\n' + get_method_doc(parent, obj)
     elif isclass(obj):
         doc += get_type_doc(obj)
         hints = get_type_hints(obj)
         if hints:
             for attr in public(hints.keys()):
-                inner_links[f"{name}.{attr}"] = linker(name)
+                INNER_LINKS[f"{name}.{attr}"] = linker(name)
             doc += table_row(
                 hints.keys(),
                 [get_name(v) for v in hints.values()]
@@ -343,7 +352,7 @@ def cache_orig_doc(parent: Any, name: str, prefix: str = "") -> None:
         name = f"{prefix}.{name}"
     doc = docstring(obj)
     if doc:
-        self_doc[name] = doc
+        ORIG_DOC[name] = doc
     if isclass(obj):
         hints = get_type_hints(obj)
         for attr_name in public(dir(obj), not is_dataclass(obj)):
@@ -383,18 +392,20 @@ def load_file(code: str, mod: ModuleType) -> bool:
     except Exception as e:
         _, _, tb = exc_info()
         stack: FrameSummary = extract_tb(tb)[-1]
-        line = code.splitlines()[int(stack.line)]
-        raise RuntimeError(f"{line}\n{e}") from None
+        logger.warning(f"In {stack.name}\n{stack.line}\n{e}")
     return True
 
 
-def load_stubs(m: PathModule) -> None:
+def load_stubs(m: ModuleType) -> None:
     """Load all pyi files."""
-    modules = {}
-    root = m.__path__[0]
-    if root in loaded_path:
+    if not hasattr(m, '__path__'):
         return
-    loaded_path.add(root)
+    m = cast(PathModule, m)
+    root = m.__path__[0]
+    if root in LOADED_PATH:
+        return
+    LOADED_PATH.add(root)
+    modules = {}
     for file in listdir(root):
         if not file.endswith('.pyi'):
             continue
@@ -424,18 +435,17 @@ def get_level(name: str) -> int:
 def load_root(root_name: str, root_module: str) -> str:
     """Root module docstring."""
     m = import_from(root_module)
-    if not hasattr(m, '__path__'):
-        raise ImportError("not a third party package")
-    m = cast(PathModule, m)
     modules = {get_name(m): m}
     ignore_module = ['typing', root_module]
-    for info in walk_packages(m.__path__, root_module + '.'):
-        m = import_from(info.name)
-        name = get_name(m)
-        ignore_module.append(name)
-        if not is_root(m):
-            continue
-        modules[name] = cast(PathModule, m)
+    if hasattr(m, '__path__'):
+        m = cast(PathModule, m)
+        logger.debug(f"Module path: {m.__path__}")
+        for info in walk_packages(m.__path__, root_module + '.'):
+            m = import_from(info.name)
+            name = get_name(m)
+            ignore_module.append(name)
+            if is_root(m):
+                modules[name] = cast(PathModule, m)
     doc = f"# {root_name} API\n\n"
     module_names = sorted(modules, key=get_level)
     for name in reversed(module_names):
@@ -460,16 +470,16 @@ def basename(name: str) -> str:
 def ref_link(doc: str) -> str:
     """Create the reference and clear the links."""
     ref = ""
-    for title, reformat in inner_links.items():
+    for title, reformat in INNER_LINKS.items():
         if search(rf"(?<!\\)\[{title}]", doc):
             ref += f"[{title}]: #{reformat}\n"
             continue
         title = basename(title)
-        if title in inner_links:
+        if title in INNER_LINKS:
             continue
         if search(rf"(?<!\\)\[{title}]", doc):
             ref += f"[{title}]: #{reformat}\n"
-    inner_links.clear()
+    INNER_LINKS.clear()
     return ref
 
 
@@ -478,13 +488,13 @@ def gen_api(
     prefix: str = 'docs',
     dry: bool = False
 ) -> None:
-    """Generate API. All rules are listed in read me file."""
+    """Generate API. All rules are listed in the readme."""
     if not isdir(prefix):
         logger.debug(f"Create directory: {prefix}")
         mkdir(prefix)
     for name, module in root_names.items():
         path = join(prefix, f"{module.replace('_', '-')}-api.md")
-        logger.debug(f"Load root: {module}")
+        logger.debug(f"Load root: {module} ({name})")
         doc = sub(r"\n\n+", "\n\n", load_root(name, module))
         ref = ref_link(doc)
         if ref:
@@ -498,5 +508,5 @@ def gen_api(
         # Unload modules
         for m_name in set(sys_modules) - unload_modules:
             del sys_modules[m_name]
-        alias.clear()
-        self_doc.clear()
+        ALIAS.clear()
+        ORIG_DOC.clear()
