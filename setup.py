@@ -39,10 +39,10 @@ setup(
     entry_points={'console_scripts': ['apimd=apimd.__main__:main']},
     zip_safe=False,
     python_requires=">=3.7",
-    options={'bdist_wheel': {'python_tag': 'cp37.cp38'}},
     classifiers=[
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
         "Topic :: Documentation",
         "Topic :: Utilities",
         "Environment :: Console",
