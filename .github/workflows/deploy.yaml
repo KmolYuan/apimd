@@ -1,0 +1,26 @@
+name: PyPI deployment
+on:
+  push:
+    branches: [ master ]
+    tags: [ v* ]
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+      - name: Setup Python
+        uses: actions/setup-python@v1
+        with:
+          python-version: 3.7
+      - name: Install dependencies
+        run: |
+          python -m pip install pip setuptools wheel -U
+      - name: Pack
+        run: python setup.py bdist_wheel
+      - name: Publish package
+        if: github.repository == 'KmolYuan/apimd' && startsWith(github.ref, 'refs/tags')
+        uses: pypa/gh-action-pypi-publish@master
+        with:
+          user: ${{ secrets.TWINE_USERNAME }}
+          password: ${{ secrets.TWINE_PASSWORD }}
+          skip_existing: true
