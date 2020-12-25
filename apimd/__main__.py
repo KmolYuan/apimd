@@ -8,15 +8,19 @@ __license__ = "MIT"
 __email__ = "pyslvs@gmail.com"
 
 from argparse import ArgumentParser
+from apimd import __version__
 
 
 def main() -> None:
     """Main function."""
     from .compiler import gen_api
+    ver = f"apimd {__version__}"
     parser = ArgumentParser(
+        prog=ver,
         description="Compile Python public API into Generic Markdown.",
         epilog=f"{__copyright__} {__license__} {__author__} {__email__}"
     )
+    parser.add_argument('-v', '--version', action='version', version=ver)
     parser.add_argument(
         'module',
         default=None,
