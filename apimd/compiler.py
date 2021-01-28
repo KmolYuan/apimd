@@ -413,13 +413,21 @@ def load_stubs(m: ModuleType) -> None:
             code = f.read()
         modules[get_name(m) + '.' + file[:-len('.pyi')]] = code
     module_names = list(modules)
-    while module_names:
+    counter = 0
+    while counter < len(module_names):
         name = module_names.pop()
         logger.debug(f"Load stub: {name}")
         code = modules[name]
         mod = ModuleType(name)
         if not load_file(code, mod):
             module_names.insert(0, name)
+            counter += 1
+        else:
+            counter = 0
+        if not module_names:
+            break
+    else:
+        raise ModuleNotFoundError("unsolved module dependencies")
     # Reload root module
     name = get_name(m)
     with open(m.__file__, 'r', encoding='utf-8') as f:
