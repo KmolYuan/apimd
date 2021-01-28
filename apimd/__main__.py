@@ -13,7 +13,6 @@ from apimd import __version__
 
 def main() -> None:
     """Main function."""
-    from .compiler import gen_api
     ver = f"apimd {__version__}"
     parser = ArgumentParser(
         prog=ver,
@@ -52,6 +51,7 @@ def main() -> None:
         if n[1] == "":
             n[1] = n[0]
         root_names[n[0]] = n[1]
+    from apimd.compiler import gen_api
     gen_api(root_names, arg.dir, arg.dry)
 
 
