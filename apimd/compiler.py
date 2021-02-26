@@ -363,7 +363,7 @@ def cache_orig_doc(parent: Any, name: str, prefix: str = "") -> None:
 def replace_keywords(doc: str, ignore_module: List[str]) -> str:
     """Replace keywords from docstring."""
     for name in reversed(ignore_module):
-        doc = doc.replace(name + '.', "")
+        doc = sub(rf"(?<!>>> )(?<!from )({name}\.)", "", doc)
     for word, re_word in (
         ('NoneType', 'None'),
         ('Ellipsis', '...'),
