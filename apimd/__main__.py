@@ -29,6 +29,15 @@ def main() -> None:
              "syntax Module-Name=module_name can specify a package name for it"
     )
     parser.add_argument(
+        '-c',
+        '--current',
+        metavar="DIR",
+        default='.',
+        nargs='?',
+        type=str,
+        help="current directory"
+    )
+    parser.add_argument(
         '-d',
         '--dir',
         metavar="DIR",
@@ -51,8 +60,8 @@ def main() -> None:
         if n[1] == "":
             n[1] = n[0]
         root_names[n[0]] = n[1]
-    from apimd.compiler import gen_api
-    gen_api(root_names, arg.dir, arg.dry)
+    from apimd.loader import gen_api
+    gen_api(root_names, arg.current, arg.dir, arg.dry)
 
 
 if __name__ == '__main__':

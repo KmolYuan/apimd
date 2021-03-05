@@ -8,6 +8,6 @@ __license__ = "MIT"
 __email__ = "pyslvs@gmail.com"
 __version__ = "1.2.1"
 
-from .compiler import gen_api
+from .loader import gen_api
 
 __all__ = ['gen_api']
