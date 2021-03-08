@@ -59,7 +59,7 @@ Data structures.
 
 *Full name:* `apimd.parser.Parser.api`
 
-| self | name | node | prefix | return |
+| self | root | node | prefix | return |
 |:----:|:----:|:----:|:------:|:------:|
 | `Self` | `str` | `Union[FunctionDef, ClassDef]` | `str` | `None` |
 |   |   |   | '' |   |
@@ -77,15 +77,55 @@ Where `name` is the full name.
 
 Compile doc.
 
+### Parser.globals()
+
+*Full name:* `apimd.parser.Parser.globals`
+
+| self | root | node | return |
+|:----:|:----:|:----:|:------:|
+| `Self` | `str` | `Union[Assign, AnnAssign]` | `None` |
+
+Assign globals.
+
+### Parser.imports()
+
+*Full name:* `apimd.parser.Parser.imports`
+
+| self | root | node | return |
+|:----:|:----:|:----:|:------:|
+| `Self` | `str` | `Union[Import, ImportFrom]` | `None` |
+
+Save import names for 'typing.TypeAlias'.
+
 ### Parser.parser()
 
 *Full name:* `apimd.parser.Parser.parser`
 
-| self | name | script | return |
+| self | root | script | return |
 |:----:|:----:|:------:|:------:|
 | `Self` | `str` | `str` | `None` |
 
 Main parser of the entire module.
+
+### Parser.table_annotation()
+
+*Full name:* `apimd.parser.Parser.table_annotation`
+
+| self | root | args | return |
+|:----:|:----:|:----:|:------:|
+| `Self` | `str` | `Sequence[arg]` | `str` |
+
+Annotations of the table.
+
+### interpret_mode()
+
+*Full name:* `apimd.parser.interpret_mode`
+
+| doc | return |
+|:---:|:------:|
+| `str` | `Iterator[str]` |
+
+Replace doctest as markdown Python code.
 
 ### is_public_family()
 
@@ -96,16 +136,6 @@ Main parser of the entire module.
 | `str` | `bool` |
 
 Check the name is come from public modules or not.
-
-### table_annotation()
-
-*Full name:* `apimd.parser.table_annotation`
-
-| args | return |
-|:----:|:------:|
-| `Sequence[arg]` | `str` |
-
-Annotations of the table.
 
 ### table_blank()
 
