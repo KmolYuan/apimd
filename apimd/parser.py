@@ -2,18 +2,17 @@
 
 """Data structures."""
 
-from __future__ import annotations
-
 __author__ = "Yuan Chang"
 __copyright__ = "Copyright (C) 2020"
 __license__ = "MIT"
 __email__ = "pyslvs@gmail.com"
 
-from typing import Sequence, Iterator, Union, Optional
+from typing import cast, Sequence, Iterator, Union, Optional
 from dataclasses import dataclass, field
 from ast import (
-    parse, get_docstring, iter_child_nodes, FunctionDef, ClassDef,
-    Assign, AnnAssign, Import, ImportFrom, Name, unparse, arg, expr,
+    parse, unparse, get_docstring, AST, FunctionDef, ClassDef,
+    Assign, AnnAssign, Import, ImportFrom, Name, Expr, arg, expr,
+    NodeTransformer,
 )
 
 _I = Union[Import, ImportFrom]
@@ -94,13 +93,11 @@ class Parser:
     def parser(self, root: str, script: str) -> None:
         """Main parser of the entire module."""
         self.doc[root] = f"## Module `{root}`\n\n"
-        root_node = parse(script,
-                          type_comments=True,
-                          feature_version=annotations.compiler_flag)
+        root_node = parse(script, type_comments=True)
         mod_doc = get_docstring(root_node)
         if mod_doc is not None:
             self.doc[root] += '\n'.join(interpret_mode(mod_doc)) + '\n'
-        for node in iter_child_nodes(root_node):
+        for node in root_node.body:
             if isinstance(node, (Import, ImportFrom)):
                 self.imports(root, node)
             if isinstance(node, (Assign, AnnAssign)):
@@ -207,15 +204,27 @@ class Parser:
             if a.arg == 'self':
                 e.append("`Self`")
             elif a.annotation is not None:
-                if isinstance(a.annotation, Name):
-                    # TODO: Name resolver
-                    name = a.annotation.id
-                    e.append(f"`{self.alias.get(root + '.' + name, name)}`")
-                else:
-                    e.append(f"`{unparse(a.annotation)}`")
+                e.append(f"`{self.resolve(root, a.annotation)}`")
             else:
                 e.append("`Any`")
         return " | ".join(e)
+
+    def resolve(self, root: str, old_node: expr) -> str:
+        """Search and resolve global names."""
+        alias = self.alias
+
+        class V(NodeTransformer):
+            """Replace global names with its expression recursively."""
+
+            def visit_Name(self, node: Name) -> AST:
+                name = root + '.' + node.id
+                if name in alias:
+                    e = cast(Expr, parse(alias[name]).body[0])
+                    return V().visit(e.value)
+                else:
+                    return node
+
+        return unparse(V().visit(old_node))
 
     def compile(self) -> str:
         """Compile doc."""

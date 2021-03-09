@@ -112,6 +112,16 @@ Save import names for 'typing.TypeAlias'.
 
 Main parser of the entire module.
 
+### Parser.resolve()
+
+*Full name:* `apimd.parser.Parser.resolve`
+
+| self | root | old_node | return |
+|:----:|:----:|:--------:|:------:|
+| `Self` | `str` | `expr` | `str` |
+
+Search and resolve global names.
+
 ### Parser.table_annotation()
 
 *Full name:* `apimd.parser.Parser.table_annotation`
@@ -156,7 +166,7 @@ Check the name is come from public modules or not.
 |:-----:|:------:|:------:|
 | `str` | `Iterator[str]` | `str` |
 
-One column table.
+Create one column table with a title.
 
 ### table_blank()
 
