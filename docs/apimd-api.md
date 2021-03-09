@@ -55,6 +55,11 @@ Data structures.
 |:----------:|
 | `@dataclass` |
 
+| Members | Type |
+|:-------:|:----:|
+| `alias` | `dict[str, str]` |
+| `doc` | `dict[str, str]` |
+
 ### Parser.api()
 
 *Full name:* `apimd.parser.Parser.api`
@@ -142,6 +147,16 @@ from apimd.parser import interpret_mode
 | `str` | `bool` |
 
 Check the name is come from public modules or not.
+
+### list_table()
+
+*Full name:* `apimd.parser.list_table`
+
+| title | listed | return |
+|:-----:|:------:|:------:|
+| `str` | `Iterator[str]` | `str` |
+
+One column table.
 
 ### table_blank()
 

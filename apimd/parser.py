@@ -80,6 +80,12 @@ def table_literal(args: Sequence[Optional[expr]]) -> str:
     return " | ".join([f"{unparse(a)}" if a is not None else " " for a in args])
 
 
+def list_table(title: str, listed: Iterator[str]) -> str:
+    """Create one column table with a title."""
+    return (f"| {title} |\n|:" + '-' * len(title) + ":|\n"
+            + '\n'.join(f"| `{e}` |" for e in listed)) + '\n\n'
+
+
 @dataclass
 class Parser:
     doc: dict[str, str] = field(default_factory=dict)
@@ -142,20 +148,19 @@ class Parser:
         """Create API doc for only functions and classes.
         Where `name` is the full name.
         """
-        doc = ""
         if prefix:
             prefix += '.'
         if isinstance(node, FunctionDef):
-            doc += f"### {prefix + node.name}()\n\n"
+            doc = f"### {prefix + node.name}()\n\n"
         else:
-            doc += f"### class {prefix + node.name}\n\n"
+            doc = f"### class {prefix + node.name}\n\n"
         full_name = root + '.' + prefix + node.name
         doc += f"*Full name:* `{full_name}`\n\n"
+        if isinstance(node, ClassDef) and node.bases:
+            doc += list_table("Bases", (f"{unparse(d)}" for d in node.bases))
         if node.decorator_list:
-            doc += ("| Decorators |\n|:" + '-' * 10 + ":|\n"
-                    + '\n'.join(f"| `@{unparse(d)}` |"
-                                for d in node.decorator_list)
-                    + '\n\n')
+            doc += list_table("Decorators", (f"@{unparse(d)}"
+                                             for d in node.decorator_list))
         if isinstance(node, FunctionDef):
             args = node.args.posonlyargs + node.args.args + node.args.kwonlyargs
             args += [arg(arg='return', annotation=node.returns)]
@@ -172,6 +177,20 @@ class Parser:
                      table_literal(default),
                      table_blank(1)]) + " |\n")
             doc += '\n'
+        else:
+            members = {}
+            for sub_node in node.body:
+                if (
+                    isinstance(sub_node, AnnAssign)
+                    and isinstance(sub_node.target, Name)
+                ):
+                    members[sub_node.target.id] = unparse(sub_node.annotation)
+            if members:
+                doc += ("| Members | Type |\n|:" + '-' * 7 + ":|:"
+                        + '-' * 4 + ":|\n"
+                        + '\n'.join(f"| `{n}` | `{members[n]}` |"
+                                    for n in sorted(members))
+                        + '\n\n')
         obj_doc = get_docstring(node)
         if obj_doc is not None:
             doc += '\n'.join(interpret_mode(obj_doc)) + '\n'
