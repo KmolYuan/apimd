@@ -13,7 +13,7 @@ from html import escape
 from ast import (
     parse, unparse, get_docstring, AST, FunctionDef, AsyncFunctionDef, ClassDef,
     Assign, AnnAssign, Import, ImportFrom, Name, Expr, Subscript, BinOp, BitOr,
-    Tuple, arg, expr, NodeTransformer,
+    Tuple, Constant, arg, expr, NodeTransformer,
 )
 
 _I = Union[Import, ImportFrom]
@@ -260,13 +260,17 @@ class Parser:
 
             def visit_Subscript(self, node: Subscript) -> AST:
                 """Replace `Union[T1, T2, ...]` as T1 | T2 | ..."""
-                if isinstance(node.value, Name) and node.value.id == 'Union':
+                if not isinstance(node.value, Name):
+                    return node
+                if node.value.id == 'Union':
                     if not isinstance(node.slice, Tuple):
                         return node.slice
                     b = node.slice.elts[0]
                     for e in node.slice.elts[1:]:
                         b = BinOp(b, BitOr(), e)
                     return b
+                elif node.value.id == 'Optional':
+                    return BinOp(node.slice, BitOr(), Constant(value=None))
                 else:
                     return node
 
