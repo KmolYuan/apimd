@@ -9,10 +9,12 @@ __email__ = "pyslvs@gmail.com"
 
 from typing import cast, Sequence, Iterator, Union, Optional
 from dataclasses import dataclass, field
+from html import escape
 from ast import (
     parse, unparse, get_docstring, AST, FunctionDef, AsyncFunctionDef, ClassDef,
-    Assign, AnnAssign, Import, ImportFrom, Name, Expr, arg, expr,
-    NodeTransformer,
+    Assign, AnnAssign, Import, ImportFrom, Name, Expr, Subscript, BinOp, BitOr,
+    Tuple,
+    arg, expr, NodeTransformer,
 )
 
 _I = Union[Import, ImportFrom]
@@ -31,6 +33,15 @@ def is_public_family(name: str) -> bool:
         if n.startswith('_'):
             return False
     return True
+
+
+def code(doc: str) -> str:
+    """Escape Markdown charters from code."""
+    doc = escape(doc).replace('|', '&#124;')
+    if '&' in doc:
+        return f"<code>{doc}</code>"
+    else:
+        return f"`{doc}`"
 
 
 def interpret_mode(doc: str) -> Iterator[str]:
@@ -82,12 +93,14 @@ def table_literal(args: Sequence[Optional[expr]]) -> str:
 def list_table(title: str, listed: Iterator[str]) -> str:
     """Create one column table with a title."""
     return (f"| {title} |\n|:" + '-' * len(title) + ":|\n"
-            + '\n'.join(f"| `{e}` |" for e in listed)) + '\n\n'
+            + '\n'.join(f"| {code(e)} |" for e in listed)) + '\n\n'
 
 
 @dataclass
 class Parser:
     doc: dict[str, str] = field(default_factory=dict)
+    # TODO: Get true docstring
+    docstring: dict[str, str] = field(default_factory=dict)
     alias: dict[str, str] = field(default_factory=dict)
 
     def parser(self, root: str, script: str) -> None:
@@ -170,7 +183,7 @@ class Parser:
             default: list[Optional[expr]] = []
             default.extend(node.args.defaults)
             default.extend(node.args.kw_defaults)
-            # default = node.args.defaults + node.args.kw_defaults
+            # TODO: Handle vararg, kwarg
             doc += ("| " + table_titles(args) + " |\n"
                     + "|" + table_split(args) + "|\n"
                     + "| " + self.table_annotation(root, args) + " |\n")
@@ -188,7 +201,7 @@ class Parser:
             if members:
                 doc += ("| Members | Type |\n|:" + '-' * 7 + ":|:"
                         + '-' * 4 + ":|\n"
-                        + '\n'.join(f"| `{n}` | `{members[n]}` |"
+                        + '\n'.join(f"| `{n}` | {code(members[n])} |"
                                     for n in sorted(members))
                         + '\n\n')
         obj_doc = get_docstring(node)
@@ -207,7 +220,7 @@ class Parser:
             if a.arg == 'self':
                 e.append("`Self`")
             elif a.annotation is not None:
-                e.append(f"`{self.resolve(root, a.annotation)}`")
+                e.append(code(self.resolve(root, a.annotation)))
             else:
                 e.append("`Any`")
         return " | ".join(e)
@@ -217,13 +230,26 @@ class Parser:
         alias = self.alias
 
         class V(NodeTransformer):
-            """Replace global names with its expression recursively."""
+            """Custom replacer."""
 
             def visit_Name(self, node: Name) -> AST:
+                """Replace global names with its expression recursively."""
                 name = root + '.' + node.id
                 if name in alias:
                     e = cast(Expr, parse(alias[name]).body[0])
                     return V().visit(e.value)
+                else:
+                    return node
+
+            def visit_Subscript(self, node: Subscript) -> AST:
+                """Replace `Union[T1, T2, ...]` as T1 | T2 | ..."""
+                if isinstance(node.value, Name) and node.value.id == 'Union':
+                    if not isinstance(node.slice, Tuple):
+                        return node.slice
+                    b = node.slice.elts[0]
+                    for e in node.slice.elts[1:]:
+                        b = BinOp(b, BitOr(), e)
+                    return b
                 else:
                     return node
 

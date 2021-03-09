@@ -22,6 +22,16 @@ Main function.
 
 Compiler functions.
 
+### find()
+
+*Full name:* `apimd.loader.find`
+
+| path | return |
+|:----:|:------:|
+| `str` | `str` |
+
+Return file path if existed.
+
 ### gen_api()
 
 *Full name:* `apimd.loader.gen_api`
@@ -37,9 +47,9 @@ Generate API. All rules are listed in the readme.
 
 *Full name:* `apimd.loader.loader`
 
-| name | stubs | root | return |
-|:----:|:-----:|:----:|:------:|
-| `str` | `str` | `str` | `str` |
+| root_name | root | return |
+|:---------:|:----:|:------:|
+| `str` | `str` | `str` |
 
 Package searching algorithm.
 
@@ -59,6 +69,7 @@ Data structures.
 |:-------:|:----:|
 | `alias` | `dict[str, str]` |
 | `doc` | `dict[str, str]` |
+| `docstring` | `dict[str, str]` |
 
 ### Parser.api()
 
@@ -66,7 +77,7 @@ Data structures.
 
 | self | root | node | prefix | return |
 |:----:|:----:|:----:|:------:|:------:|
-| `Self` | `str` | `Union[FunctionDef, AsyncFunctionDef, ClassDef]` | `str` | `None` |
+| `Self` | `str` | <code>FunctionDef &#124; AsyncFunctionDef &#124; ClassDef</code> | `str` | `None` |
 |   |   |   | '' |   |
 
 Create API doc for only functions and classes.
@@ -88,7 +99,7 @@ Compile doc.
 
 | self | root | node | return |
 |:----:|:----:|:----:|:------:|
-| `Self` | `str` | `Union[Assign, AnnAssign]` | `None` |
+| `Self` | `str` | <code>Assign &#124; AnnAssign</code> | `None` |
 
 Assign globals.
 
@@ -98,7 +109,7 @@ Assign globals.
 
 | self | root | node | return |
 |:----:|:----:|:----:|:------:|
-| `Self` | `str` | `Union[Import, ImportFrom]` | `None` |
+| `Self` | `str` | <code>Import &#124; ImportFrom</code> | `None` |
 
 Save import names for 'typing.TypeAlias'.
 
@@ -131,6 +142,16 @@ Search and resolve global names.
 | `Self` | `str` | `Sequence[arg]` | `str` |
 
 Annotations of the table.
+
+### code()
+
+*Full name:* `apimd.parser.code`
+
+| doc | return |
+|:---:|:------:|
+| `str` | `str` |
+
+Escape Markdown charters from code.
 
 ### interpret_mode()
 
