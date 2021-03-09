@@ -13,13 +13,25 @@ from html import escape
 from ast import (
     parse, unparse, get_docstring, AST, FunctionDef, AsyncFunctionDef, ClassDef,
     Assign, AnnAssign, Import, ImportFrom, Name, Expr, Subscript, BinOp, BitOr,
-    Tuple, Constant, arg, expr, NodeTransformer,
+    Tuple, Constant, arg, expr, stmt, NodeTransformer, arguments,
 )
 
 _I = Union[Import, ImportFrom]
 _G = Union[Assign, AnnAssign]
 _API = Union[FunctionDef, AsyncFunctionDef, ClassDef]
 TA = 'typing.TypeAlias'
+UN = 'typing.Union'
+OP = 'typing.Optional'
+
+
+def _m(name: str) -> str:
+    """Get module names"""
+    return name.rsplit('.', maxsplit=1)[0]
+
+
+def _n(name: str) -> str:
+    """Get base name."""
+    return name.rsplit('.', maxsplit=1)[1]
 
 
 def is_public_family(name: str) -> bool:
@@ -68,20 +80,10 @@ def interpret_mode(doc: str) -> Iterator[str]:
             keep = False
 
 
-def table_titles(args: Sequence[arg]) -> str:
-    """Names of the table."""
-    return " | ".join(a.arg for a in args)
-
-
 def table_split(args: Sequence[arg]) -> str:
     """The split line of the table."""
     return "|".join(":" + '-' * (len(a.arg) if len(a.arg) > 3 else 3) + ":"
                     for a in args)
-
-
-def table_blank(n: int) -> str:
-    """Blanks of the table."""
-    return " | ".join(" " for _ in range(n))
 
 
 def table_literal(args: Sequence[Optional[expr]]) -> str:
@@ -112,33 +114,34 @@ class Parser:
             if isinstance(node, (Import, ImportFrom)):
                 self.imports(root, node)
             if isinstance(node, (Assign, AnnAssign)):
-                self.globals(root, node)
+                self.g_alias(root, node)
             elif isinstance(node, (FunctionDef, AsyncFunctionDef, ClassDef)):
                 self.api(root, node)
 
     def imports(self, root: str, node: _I) -> None:
-        """Save import names for 'typing.TypeAlias'."""
-        if isinstance(node, Import):
-            for a in node.names:
-                if a.name != 'typing.TypeAlias':
-                    continue
-                if a.asname is None:
-                    self.alias[root + '.' + TA] = TA
-                else:
-                    self.alias[root + '.' + a.asname] = TA
-        else:
-            if node.module != 'typing':
-                return
-            for a in node.names:
-                if a.name != 'TypeAlias':
-                    continue
-                if a.asname is None:
-                    self.alias[root + '.TypeAlias'] = TA
-                else:
-                    self.alias[root + '.' + a.asname] = TA
+        """Save import names for 'typing.*'."""
+        for name in [TA, UN, OP]:
+            if isinstance(node, Import):
+                for a in node.names:
+                    if a.name != name:
+                        continue
+                    if a.asname is None:
+                        self.alias[root + '.' + name] = name
+                    else:
+                        self.alias[root + '.' + a.asname] = name
+            else:
+                if node.module != _m(name):
+                    return
+                for a in node.names:
+                    if a.name != _n(name):
+                        continue
+                    if a.asname is None:
+                        self.alias[root + '.' + _n(name)] = name
+                    else:
+                        self.alias[root + '.' + a.asname] = name
 
-    def globals(self, root: str, node: _G) -> None:
-        """Assign globals."""
+    def g_alias(self, root: str, node: _G) -> None:
+        """Assign to global alias."""
         if isinstance(node, AnnAssign):
             if (
                 isinstance(node.annotation, Name)
@@ -178,48 +181,9 @@ class Parser:
                                                         for d in
                                                         node.decorator_list))
         if isinstance(node, (FunctionDef, AsyncFunctionDef)):
-            a = node.args
-            args = []
-            default: list[Optional[expr]] = []
-            if a.posonlyargs:
-                args.extend(a.posonlyargs)
-                args.append(arg('/'))
-                default.extend([None] * len(a.posonlyargs))
-            args.extend(a.args)
-            default.extend([None] * (len(a.args) - len(a.defaults)))
-            default.extend(a.defaults)
-            if a.vararg is not None:
-                args.append(arg('*' + a.vararg.arg, a.vararg.annotation))
-            else:
-                args.append(arg('*'))
-            default.append(None)
-            args.extend(a.kwonlyargs)
-            default.extend([None] * (len(a.kwonlyargs) - len(a.kw_defaults)))
-            default.extend(a.kw_defaults)
-            if a.kwarg is not None:
-                args.append(arg('**' + a.kwarg.arg, a.kwarg.annotation))
-                default.append(None)
-            args.append(arg('return', node.returns))
-            default.append(None)
-            self.doc[name] += (
-                "| " + table_titles(args) + " |\n"
-                + "|" + table_split(args) + "|\n"
-                + "| " + self.table_annotation(root, args) + " |\n")
-            if not all(d is None for d in default):
-                self.doc[name] += f"| {table_literal(default)} |\n"
-            self.doc[name] += '\n'
+            self.func_api(root, name, node.args, node.returns)
         else:
-            members = {}
-            for e in node.body:
-                if isinstance(e, AnnAssign) and isinstance(e.target, Name):
-                    members[e.target.id] = unparse(e.annotation)
-            if members:
-                self.doc[name] += (
-                    "| Members | Type |\n|:" + '-' * 7 + ":|:"
-                    + '-' * 4 + ":|\n"
-                    + '\n'.join(f"| `{n}` | {code(members[n])} |"
-                                for n in sorted(members))
-                    + '\n\n')
+            self.class_api(name, node.body)
         doc = get_docstring(node)
         if doc is not None:
             self.docstring[name] = '\n'.join(interpret_mode(doc))
@@ -227,6 +191,53 @@ class Parser:
             for e in node.body:
                 if isinstance(e, (FunctionDef, AsyncFunctionDef, ClassDef)):
                     self.api(root, e, prefix=node.name)
+
+    def func_api(self, root: str, name: str, node: arguments,
+                 returns: Optional[expr]) -> None:
+        """Create function API."""
+        args = []
+        default: list[Optional[expr]] = []
+        if node.posonlyargs:
+            args.extend(node.posonlyargs)
+            args.append(arg('/'))
+            default.extend([None] * len(node.posonlyargs))
+        args.extend(node.args)
+        default.extend([None] * (len(node.args) - len(node.defaults)))
+        default.extend(node.defaults)
+        if node.vararg is not None:
+            args.append(arg('*' + node.vararg.arg, node.vararg.annotation))
+        elif node.kwonlyargs:
+            args.append(arg('*'))
+        default.append(None)
+        args.extend(node.kwonlyargs)
+        default.extend([None] * (len(node.kwonlyargs) - len(node.kw_defaults)))
+        default.extend(node.kw_defaults)
+        if node.kwarg is not None:
+            args.append(arg('**' + node.kwarg.arg, node.kwarg.annotation))
+            default.append(None)
+        args.append(arg('return', returns))
+        default.append(None)
+        self.doc[name] += (
+            "| " + " | ".join(a.arg for a in args) + " |\n"
+            + "|" + table_split(args) + "|\n"
+            + "| " + self.table_annotation(root, args) + " |\n")
+        if not all(d is None for d in default):
+            self.doc[name] += f"| {table_literal(default)} |\n"
+        self.doc[name] += '\n'
+
+    def class_api(self, name: str, body: list[stmt]) -> None:
+        """Create class API."""
+        members = {}
+        for e in body:
+            if isinstance(e, AnnAssign) and isinstance(e.target, Name):
+                members[e.target.id] = unparse(e.annotation)
+        if not members:
+            return
+        self.doc[name] += (
+            "| Members | Type |\n|:" + '-' * 7 + ":|:" + '-' * 4 + ":|\n"
+            + '\n'.join(f"| `{n}` | {code(members[n])} |"
+                        for n in sorted(members))
+            + '\n\n')
 
     def table_annotation(self, root: str, args: Sequence[arg]) -> str:
         """Annotations of the table."""
@@ -262,22 +273,24 @@ class Parser:
                 """Replace `Union[T1, T2, ...]` as T1 | T2 | ..."""
                 if not isinstance(node.value, Name):
                     return node
-                if node.value.id == 'Union':
+                idf = alias.get(root + '.' + node.value.id, node.value.id)
+                if idf == UN:
                     if not isinstance(node.slice, Tuple):
                         return node.slice
                     b = node.slice.elts[0]
                     for e in node.slice.elts[1:]:
                         b = BinOp(b, BitOr(), e)
                     return b
-                elif node.value.id == 'Optional':
+                elif idf == OP:
                     return BinOp(node.slice, BitOr(), Constant(value=None))
                 else:
                     return node
 
-        return unparse(V().visit(old_node))
+        v = V()
+        return unparse(v.generic_visit(v.visit(old_node)))
 
     def compile(self) -> str:
         """Compile doc."""
         return "\n\n".join(
             (self.doc[name] + self.docstring.get(name, "")).rstrip()
-            for name in sorted(self.doc)) + '\n'
+            for name in sorted(self.doc) if is_public_family(name)) + '\n'
