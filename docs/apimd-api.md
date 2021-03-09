@@ -12,9 +12,9 @@ The command line launcher of apimd.
 
 *Full name:* `apimd.__main__.main`
 
-| return |
-|:------:|
-| `None` |
+| * | return |
+|:---:|:------:|
+|   | `None` |
 
 Main function.
 
@@ -26,9 +26,9 @@ Compiler functions.
 
 *Full name:* `apimd.loader.find`
 
-| path | return |
-|:----:|:------:|
-| `str` | `str` |
+| path | * | return |
+|:----:|:---:|:------:|
+| `str` |   | `str` |
 
 Return file path if existed.
 
@@ -36,10 +36,10 @@ Return file path if existed.
 
 *Full name:* `apimd.loader.gen_api`
 
-| root_names | pwd | prefix | dry | return |
-|:----------:|:---:|:------:|:---:|:------:|
-| `dict[str, str]` | `str` | `str` | `bool` | `Sequence[str]` |
-|   | '.' | 'docs' | False |   |
+| root_names | pwd | * | prefix | dry | return |
+|:----------:|:---:|:---:|:------:|:---:|:------:|
+| `dict[str, str]` | `str` |   | `str` | `bool` | `Sequence[str]` |
+|   | '.' |   | 'docs' | False |   |
 
 Generate API. All rules are listed in the readme.
 
@@ -47,9 +47,9 @@ Generate API. All rules are listed in the readme.
 
 *Full name:* `apimd.loader.loader`
 
-| root_name | root | return |
-|:---------:|:----:|:------:|
-| `str` | `str` | `str` |
+| root_name | root | * | return |
+|:---------:|:----:|:---:|:------:|
+| `str` | `str` |   | `str` |
 
 Package searching algorithm.
 
@@ -75,10 +75,10 @@ Data structures.
 
 *Full name:* `apimd.parser.Parser.api`
 
-| self | root | node | prefix | return |
-|:----:|:----:|:----:|:------:|:------:|
-| `Self` | `str` | <code>FunctionDef &#124; AsyncFunctionDef &#124; ClassDef</code> | `str` | `None` |
-|   |   |   | '' |   |
+| self | root | node | * | prefix | return |
+|:----:|:----:|:----:|:---:|:------:|:------:|
+| `Self` | `str` | <code>FunctionDef &#124; AsyncFunctionDef &#124; ClassDef</code> |   | `str` | `None` |
+|   |   |   |   | '' |   |
 
 Create API doc for only functions and classes.
 Where `name` is the full name.
@@ -87,9 +87,9 @@ Where `name` is the full name.
 
 *Full name:* `apimd.parser.Parser.compile`
 
-| self | return |
-|:----:|:------:|
-| `Self` | `str` |
+| self | * | return |
+|:----:|:---:|:------:|
+| `Self` |   | `str` |
 
 Compile doc.
 
@@ -97,9 +97,9 @@ Compile doc.
 
 *Full name:* `apimd.parser.Parser.globals`
 
-| self | root | node | return |
-|:----:|:----:|:----:|:------:|
-| `Self` | `str` | <code>Assign &#124; AnnAssign</code> | `None` |
+| self | root | node | * | return |
+|:----:|:----:|:----:|:---:|:------:|
+| `Self` | `str` | <code>Assign &#124; AnnAssign</code> |   | `None` |
 
 Assign globals.
 
@@ -107,9 +107,9 @@ Assign globals.
 
 *Full name:* `apimd.parser.Parser.imports`
 
-| self | root | node | return |
-|:----:|:----:|:----:|:------:|
-| `Self` | `str` | <code>Import &#124; ImportFrom</code> | `None` |
+| self | root | node | * | return |
+|:----:|:----:|:----:|:---:|:------:|
+| `Self` | `str` | <code>Import &#124; ImportFrom</code> |   | `None` |
 
 Save import names for 'typing.TypeAlias'.
 
@@ -117,9 +117,9 @@ Save import names for 'typing.TypeAlias'.
 
 *Full name:* `apimd.parser.Parser.parser`
 
-| self | root | script | return |
-|:----:|:----:|:------:|:------:|
-| `Self` | `str` | `str` | `None` |
+| self | root | script | * | return |
+|:----:|:----:|:------:|:---:|:------:|
+| `Self` | `str` | `str` |   | `None` |
 
 Main parser of the entire module.
 
@@ -127,9 +127,9 @@ Main parser of the entire module.
 
 *Full name:* `apimd.parser.Parser.resolve`
 
-| self | root | old_node | return |
-|:----:|:----:|:--------:|:------:|
-| `Self` | `str` | `expr` | `str` |
+| self | root | old_node | * | return |
+|:----:|:----:|:--------:|:---:|:------:|
+| `Self` | `str` | `expr` |   | `str` |
 
 Search and resolve global names.
 
@@ -137,9 +137,9 @@ Search and resolve global names.
 
 *Full name:* `apimd.parser.Parser.table_annotation`
 
-| self | root | args | return |
-|:----:|:----:|:----:|:------:|
-| `Self` | `str` | `Sequence[arg]` | `str` |
+| self | root | args | * | return |
+|:----:|:----:|:----:|:---:|:------:|
+| `Self` | `str` | `Sequence[arg]` |   | `str` |
 
 Annotations of the table.
 
@@ -147,9 +147,9 @@ Annotations of the table.
 
 *Full name:* `apimd.parser.code`
 
-| doc | return |
-|:---:|:------:|
-| `str` | `str` |
+| doc | * | return |
+|:---:|:---:|:------:|
+| `str` |   | `str` |
 
 Escape Markdown charters from code.
 
@@ -157,9 +157,9 @@ Escape Markdown charters from code.
 
 *Full name:* `apimd.parser.interpret_mode`
 
-| doc | return |
-|:---:|:------:|
-| `str` | `Iterator[str]` |
+| doc | * | return |
+|:---:|:---:|:------:|
+| `str` |   | `Iterator[str]` |
 
 Replace doctest as markdown Python code.
 
@@ -173,9 +173,9 @@ from apimd.parser import interpret_mode
 
 *Full name:* `apimd.parser.is_public_family`
 
-| name | return |
-|:----:|:------:|
-| `str` | `bool` |
+| name | * | return |
+|:----:|:---:|:------:|
+| `str` |   | `bool` |
 
 Check the name is come from public modules or not.
 
@@ -183,9 +183,9 @@ Check the name is come from public modules or not.
 
 *Full name:* `apimd.parser.list_table`
 
-| title | listed | return |
-|:-----:|:------:|:------:|
-| `str` | `Iterator[str]` | `str` |
+| title | listed | * | return |
+|:-----:|:------:|:---:|:------:|
+| `str` | `Iterator[str]` |   | `str` |
 
 Create one column table with a title.
 
@@ -193,9 +193,9 @@ Create one column table with a title.
 
 *Full name:* `apimd.parser.table_blank`
 
-| n | return |
-|:---:|:------:|
-| `int` | `str` |
+| n | * | return |
+|:---:|:---:|:------:|
+| `int` |   | `str` |
 
 Blanks of the table.
 
@@ -203,9 +203,9 @@ Blanks of the table.
 
 *Full name:* `apimd.parser.table_literal`
 
-| args | return |
-|:----:|:------:|
-| `Sequence[Optional[expr]]` | `str` |
+| args | * | return |
+|:----:|:---:|:------:|
+| `Sequence[Optional[expr]]` |   | `str` |
 
 Literals of the table.
 
@@ -213,9 +213,9 @@ Literals of the table.
 
 *Full name:* `apimd.parser.table_split`
 
-| args | return |
-|:----:|:------:|
-| `Sequence[arg]` | `str` |
+| args | * | return |
+|:----:|:---:|:------:|
+| `Sequence[arg]` |   | `str` |
 
 The split line of the table.
 
@@ -223,8 +223,8 @@ The split line of the table.
 
 *Full name:* `apimd.parser.table_titles`
 
-| args | return |
-|:----:|:------:|
-| `Sequence[arg]` | `str` |
+| args | * | return |
+|:----:|:---:|:------:|
+| `Sequence[arg]` |   | `str` |
 
 Names of the table.

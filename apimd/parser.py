@@ -178,21 +178,35 @@ class Parser:
                                                         for d in
                                                         node.decorator_list))
         if isinstance(node, (FunctionDef, AsyncFunctionDef)):
-            args = node.args.posonlyargs + node.args.args + node.args.kwonlyargs
-            args += [arg(arg='return', annotation=node.returns)]
+            a = node.args
+            args = []
             default: list[Optional[expr]] = []
-            default.extend(node.args.defaults)
-            default.extend(node.args.kw_defaults)
-            # TODO: Handle vararg, kwarg
+            if a.posonlyargs:
+                args.extend(a.posonlyargs)
+                args.append(arg('/'))
+                default.extend([None] * len(a.posonlyargs))
+            args.extend(a.args)
+            default.extend([None] * (len(a.args) - len(a.defaults)))
+            default.extend(a.defaults)
+            if a.vararg is not None:
+                args.append(arg('*' + a.vararg.arg, a.vararg.annotation))
+            else:
+                args.append(arg('*'))
+            default.append(None)
+            args.extend(a.kwonlyargs)
+            default.extend([None] * (len(a.kwonlyargs) - len(a.kw_defaults)))
+            default.extend(a.kw_defaults)
+            if a.kwarg is not None:
+                args.append(arg('**' + a.kwarg.arg, a.kwarg.annotation))
+                default.append(None)
+            args.append(arg('return', node.returns))
+            default.append(None)
             self.doc[name] += (
                 "| " + table_titles(args) + " |\n"
                 + "|" + table_split(args) + "|\n"
                 + "| " + self.table_annotation(root, args) + " |\n")
-            if default:
-                self.doc[name] += ("| " + " | ".join(
-                    [table_blank(len(args) - len(default) - 1),
-                     table_literal(default),
-                     table_blank(1)]) + " |\n")
+            if not all(d is None for d in default):
+                self.doc[name] += f"| {table_literal(default)} |\n"
             self.doc[name] += '\n'
         else:
             members = {}
@@ -220,6 +234,8 @@ class Parser:
         for a in args:
             if a.arg == 'self':
                 e.append("`Self`")
+            elif a.arg in {'*', '**'}:
+                e.append(" ")
             elif a.annotation is not None:
                 e.append(code(self.resolve(root, a.annotation)))
             else:

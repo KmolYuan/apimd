@@ -61,7 +61,7 @@ def main() -> None:
             n[1] = n[0]
         root_names[n[0]] = n[1]
     from apimd.loader import gen_api
-    gen_api(root_names, arg.current, arg.dir, arg.dry)
+    gen_api(root_names, arg.current, prefix=arg.dir, dry=arg.dry)
 
 
 if __name__ == '__main__':

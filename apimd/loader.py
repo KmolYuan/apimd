@@ -51,6 +51,7 @@ def loader(root_name: str, root: str) -> str:
 def gen_api(
     root_names: dict[str, str],
     pwd: str = '.',
+    *,
     prefix: str = 'docs',
     dry: bool = False
 ) -> Sequence[str]:
