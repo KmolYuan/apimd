@@ -66,7 +66,7 @@ Data structures.
 
 | self | root | node | prefix | return |
 |:----:|:----:|:----:|:------:|:------:|
-| `Self` | `str` | `Union[FunctionDef, ClassDef]` | `str` | `None` |
+| `Self` | `str` | `Union[FunctionDef, AsyncFunctionDef, ClassDef]` | `str` | `None` |
 |   |   |   | '' |   |
 
 Create API doc for only functions and classes.

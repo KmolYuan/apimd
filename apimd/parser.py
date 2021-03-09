@@ -137,9 +137,13 @@ class Parser:
             ):
                 self.alias[root + '.' + node.target.id] = unparse(node.value)
         else:
-            for sn in node.targets:
-                if isinstance(sn, Name):
-                    self.alias[root + '.' + sn.id] = unparse(node.value)
+            if (
+                node.type_comment is None
+                or self.alias.get(node.type_comment) == TA
+            ):
+                for sn in node.targets:
+                    if isinstance(sn, Name):
+                        self.alias[root + '.' + sn.id] = unparse(node.value)
 
     def api(self, root: str, node: _API, *, prefix: str = '') -> None:
         """Create API doc for only functions and classes.
