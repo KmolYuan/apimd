@@ -10,14 +10,14 @@ __email__ = "pyslvs@gmail.com"
 from typing import cast, Sequence, Iterator, Union, Optional
 from dataclasses import dataclass, field
 from ast import (
-    parse, unparse, get_docstring, AST, FunctionDef, ClassDef,
+    parse, unparse, get_docstring, AST, FunctionDef, AsyncFunctionDef, ClassDef,
     Assign, AnnAssign, Import, ImportFrom, Name, Expr, arg, expr,
     NodeTransformer,
 )
 
 _I = Union[Import, ImportFrom]
 _G = Union[Assign, AnnAssign]
-_API = Union[FunctionDef, ClassDef]
+_API = Union[FunctionDef, AsyncFunctionDef, ClassDef]
 TA = 'typing.TypeAlias'
 
 
@@ -102,7 +102,7 @@ class Parser:
                 self.imports(root, node)
             if isinstance(node, (Assign, AnnAssign)):
                 self.globals(root, node)
-            elif isinstance(node, (FunctionDef, ClassDef)):
+            elif isinstance(node, (FunctionDef, AsyncFunctionDef, ClassDef)):
                 self.api(root, node)
 
     def imports(self, root: str, node: _I) -> None:
@@ -149,6 +149,8 @@ class Parser:
             prefix += '.'
         if isinstance(node, FunctionDef):
             doc = f"### {prefix + node.name}()\n\n"
+        elif isinstance(node, AsyncFunctionDef):
+            doc = f"### async {prefix + node.name}()\n\n"
         else:
             doc = f"### class {prefix + node.name}\n\n"
         full_name = root + '.' + prefix + node.name
@@ -158,7 +160,7 @@ class Parser:
         if node.decorator_list:
             doc += list_table("Decorators", (f"@{unparse(d)}"
                                              for d in node.decorator_list))
-        if isinstance(node, FunctionDef):
+        if isinstance(node, (FunctionDef, AsyncFunctionDef)):
             args = node.args.posonlyargs + node.args.args + node.args.kwonlyargs
             args += [arg(arg='return', annotation=node.returns)]
             default: list[Optional[expr]] = []
@@ -176,12 +178,9 @@ class Parser:
             doc += '\n'
         else:
             members = {}
-            for sub_node in node.body:
-                if (
-                    isinstance(sub_node, AnnAssign)
-                    and isinstance(sub_node.target, Name)
-                ):
-                    members[sub_node.target.id] = unparse(sub_node.annotation)
+            for e in node.body:
+                if isinstance(e, AnnAssign) and isinstance(e.target, Name):
+                    members[e.target.id] = unparse(e.annotation)
             if members:
                 doc += ("| Members | Type |\n|:" + '-' * 7 + ":|:"
                         + '-' * 4 + ":|\n"
@@ -192,9 +191,9 @@ class Parser:
         if obj_doc is not None:
             doc += '\n'.join(interpret_mode(obj_doc)) + '\n'
         if isinstance(node, ClassDef):
-            for sub_node in node.body:
-                if isinstance(sub_node, (FunctionDef, ClassDef)):
-                    self.api(root, sub_node, prefix=node.name)
+            for e in node.body:
+                if isinstance(e, (FunctionDef, AsyncFunctionDef, ClassDef)):
+                    self.api(root, e, prefix=node.name)
         self.doc[full_name] = doc
 
     def table_annotation(self, root: str, args: Sequence[arg]) -> str:
