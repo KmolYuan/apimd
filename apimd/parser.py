@@ -13,8 +13,7 @@ from html import escape
 from ast import (
     parse, unparse, get_docstring, AST, FunctionDef, AsyncFunctionDef, ClassDef,
     Assign, AnnAssign, Import, ImportFrom, Name, Expr, Subscript, BinOp, BitOr,
-    Tuple,
-    arg, expr, NodeTransformer,
+    Tuple, arg, expr, NodeTransformer,
 )
 
 _I = Union[Import, ImportFrom]
@@ -99,7 +98,6 @@ def list_table(title: str, listed: Iterator[str]) -> str:
 @dataclass
 class Parser:
     doc: dict[str, str] = field(default_factory=dict)
-    # TODO: Get true docstring
     docstring: dict[str, str] = field(default_factory=dict)
     alias: dict[str, str] = field(default_factory=dict)
 
@@ -107,9 +105,9 @@ class Parser:
         """Main parser of the entire module."""
         self.doc[root] = f"## Module `{root}`\n\n"
         root_node = parse(script, type_comments=True)
-        mod_doc = get_docstring(root_node)
-        if mod_doc is not None:
-            self.doc[root] += '\n'.join(interpret_mode(mod_doc)) + '\n'
+        doc = get_docstring(root_node)
+        if doc is not None:
+            self.docstring[root] = '\n'.join(interpret_mode(doc))
         for node in root_node.body:
             if isinstance(node, (Import, ImportFrom)):
                 self.imports(root, node)
@@ -164,19 +162,21 @@ class Parser:
         """
         if prefix:
             prefix += '.'
+        name = root + '.' + prefix + node.name
         if isinstance(node, FunctionDef):
-            doc = f"### {prefix + node.name}()\n\n"
+            self.doc[name] = f"### {prefix + node.name}()\n\n"
         elif isinstance(node, AsyncFunctionDef):
-            doc = f"### async {prefix + node.name}()\n\n"
+            self.doc[name] = f"### async {prefix + node.name}()\n\n"
         else:
-            doc = f"### class {prefix + node.name}\n\n"
-        full_name = root + '.' + prefix + node.name
-        doc += f"*Full name:* `{full_name}`\n\n"
+            self.doc[name] = f"### class {prefix + node.name}\n\n"
+        self.doc[name] += f"*Full name:* `{name}`\n\n"
         if isinstance(node, ClassDef) and node.bases:
-            doc += list_table("Bases", (f"{unparse(d)}" for d in node.bases))
+            self.doc[name] += list_table("Bases", (f"{unparse(d)}"
+                                                   for d in node.bases))
         if node.decorator_list:
-            doc += list_table("Decorators", (f"@{unparse(d)}"
-                                             for d in node.decorator_list))
+            self.doc[name] += list_table("Decorators", (f"@{unparse(d)}"
+                                                        for d in
+                                                        node.decorator_list))
         if isinstance(node, (FunctionDef, AsyncFunctionDef)):
             args = node.args.posonlyargs + node.args.args + node.args.kwonlyargs
             args += [arg(arg='return', annotation=node.returns)]
@@ -184,34 +184,35 @@ class Parser:
             default.extend(node.args.defaults)
             default.extend(node.args.kw_defaults)
             # TODO: Handle vararg, kwarg
-            doc += ("| " + table_titles(args) + " |\n"
-                    + "|" + table_split(args) + "|\n"
-                    + "| " + self.table_annotation(root, args) + " |\n")
+            self.doc[name] += (
+                "| " + table_titles(args) + " |\n"
+                + "|" + table_split(args) + "|\n"
+                + "| " + self.table_annotation(root, args) + " |\n")
             if default:
-                doc += ("| " + " | ".join(
+                self.doc[name] += ("| " + " | ".join(
                     [table_blank(len(args) - len(default) - 1),
                      table_literal(default),
                      table_blank(1)]) + " |\n")
-            doc += '\n'
+            self.doc[name] += '\n'
         else:
             members = {}
             for e in node.body:
                 if isinstance(e, AnnAssign) and isinstance(e.target, Name):
                     members[e.target.id] = unparse(e.annotation)
             if members:
-                doc += ("| Members | Type |\n|:" + '-' * 7 + ":|:"
-                        + '-' * 4 + ":|\n"
-                        + '\n'.join(f"| `{n}` | {code(members[n])} |"
-                                    for n in sorted(members))
-                        + '\n\n')
-        obj_doc = get_docstring(node)
-        if obj_doc is not None:
-            doc += '\n'.join(interpret_mode(obj_doc)) + '\n'
+                self.doc[name] += (
+                    "| Members | Type |\n|:" + '-' * 7 + ":|:"
+                    + '-' * 4 + ":|\n"
+                    + '\n'.join(f"| `{n}` | {code(members[n])} |"
+                                for n in sorted(members))
+                    + '\n\n')
+        doc = get_docstring(node)
+        if doc is not None:
+            self.docstring[name] = '\n'.join(interpret_mode(doc))
         if isinstance(node, ClassDef):
             for e in node.body:
                 if isinstance(e, (FunctionDef, AsyncFunctionDef, ClassDef)):
                     self.api(root, e, prefix=node.name)
-        self.doc[full_name] = doc
 
     def table_annotation(self, root: str, args: Sequence[arg]) -> str:
         """Annotations of the table."""
@@ -257,5 +258,6 @@ class Parser:
 
     def compile(self) -> str:
         """Compile doc."""
-        return "\n\n".join(self.doc[name].rstrip()
-                           for name in sorted(self.doc)) + '\n'
+        return "\n\n".join(
+            (self.doc[name] + self.docstring.get(name, "")).rstrip()
+            for name in sorted(self.doc)) + '\n'
