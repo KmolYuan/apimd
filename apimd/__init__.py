@@ -10,4 +10,4 @@ __version__ = "1.2.1"
 
 from .loader import gen_api
 
-__all__ = ['gen_api']
+__all__ = ['__version__', 'gen_api']

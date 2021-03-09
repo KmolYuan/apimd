@@ -22,25 +22,30 @@ basicConfig(stream=stdout, level=DEBUG, format="%(message)s")
 logger = getLogger()
 
 
-def loader(name: str, root: str) -> str:
+def loader(name: str, stubs: str, root: str) -> str:
     """Package searching algorithm."""
     p = Parser()
     for info in walk_packages([root]):
-        if not info.name.startswith(name):
+        if not info.name.startswith((name, stubs)):
             continue
-        path = join(root, info.name.replace('.', sep))
+        path = info.name.replace('.', sep)
+        o_path = join(root, path)
+        s_path = join(stubs, path)
         if info.ispkg:
-            path += sep + "__init__.py"
-            if not isfile(path):
-                path += "i"
+            o_path += sep + "__init__.pyi"
+            if not isfile(o_path):
+                o_path = o_path.removesuffix("i")
         else:
-            path += ".py"
-            if not isfile(path):
-                path += "i"
-        if isfile(path):
+            o_path += ".pyi"
+            if not isfile(o_path):
+                o_path = o_path.removesuffix("i")
+        path = o_path if isfile(o_path) else s_path if isfile(s_path) else ""
+        if path:
             logger.debug(f"{info.name} <= {path}")
             with open(path, 'r') as f:
                 p.parser(info.name, f.read())
+        else:
+            logger.warning(f"no Python source for {info.name}")
     return p.compile()
 
 
@@ -57,10 +62,14 @@ def gen_api(
     docs = []
     for title, name in root_names.items():
         logger.debug(f"Load root: {name} ({title})")
+        stubs = name
         if not find_packages(pwd, include=[name]):
-            logger.warning(f"'{name}' can not be found")
-            continue
-        doc = f"# {title} API\n\n" + loader(name, pwd)
+            # PEP561
+            stubs += '-stubs'
+            if not find_packages(pwd, include=[stubs]):
+                logger.warning(f"'{name}' can not be found")
+                continue
+        doc = f"# {title} API\n\n" + loader(name, stubs, pwd)
         path = join(prefix, f"{name.replace('_', '-')}-api.md")
         logger.debug(f"Write file: {path}")
         if dry:

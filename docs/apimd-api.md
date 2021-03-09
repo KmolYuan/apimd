@@ -37,9 +37,9 @@ Generate API. All rules are listed in the readme.
 
 *Full name:* `apimd.loader.loader`
 
-| name | root | return |
-|:----:|:----:|:------:|
-| `str` | `str` | `str` |
+| name | stubs | root | return |
+|:----:|:-----:|:----:|:------:|
+| `str` | `str` | `str` | `str` |
 
 Package searching algorithm.
 
@@ -126,6 +126,12 @@ Annotations of the table.
 | `str` | `Iterator[str]` |
 
 Replace doctest as markdown Python code.
+
+Usage:
+```python
+from apimd.parser import interpret_mode
+'\n'.join(interpret_mode(">>> print(\"Hello\")"))
+```
 
 ### is_public_family()
 

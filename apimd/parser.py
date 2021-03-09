@@ -12,7 +12,7 @@ __email__ = "pyslvs@gmail.com"
 from typing import Sequence, Iterator, Union, Optional
 from dataclasses import dataclass, field
 from ast import (
-    parse, dump, get_docstring, iter_child_nodes, FunctionDef, ClassDef,
+    parse, get_docstring, iter_child_nodes, FunctionDef, ClassDef,
     Assign, AnnAssign, Import, ImportFrom, Name, unparse, arg, expr,
 )
 
@@ -35,7 +35,12 @@ def is_public_family(name: str) -> bool:
 
 
 def interpret_mode(doc: str) -> Iterator[str]:
-    """Replace doctest as markdown Python code."""
+    r"""Replace doctest as markdown Python code.
+
+    Usage:
+    >>> from apimd.parser import interpret_mode
+    >>> '\n'.join(interpret_mode(">>> print(\"Hello\")"))
+    """
     keep = False
     lines = doc.split('\n')
     for i, line in enumerate(lines):
@@ -46,11 +51,11 @@ def interpret_mode(doc: str) -> Iterator[str]:
                 yield "```python"
                 keep = True
         elif keep:
-            yield "```\n"
+            yield "```"
             keep = False
         yield line
         if signed and i == len(lines) - 1:
-            yield "```\n"
+            yield "```"
             keep = False
 
 
@@ -88,7 +93,7 @@ class Parser:
                           feature_version=annotations.compiler_flag)
         mod_doc = get_docstring(root_node)
         if mod_doc is not None:
-            self.doc[root] += '\n'.join(interpret_mode(mod_doc)) + '\n\n'
+            self.doc[root] += '\n'.join(interpret_mode(mod_doc)) + '\n'
         for node in iter_child_nodes(root_node):
             if isinstance(node, (Import, ImportFrom)):
                 self.imports(root, node)
@@ -169,7 +174,7 @@ class Parser:
             doc += '\n'
         obj_doc = get_docstring(node)
         if obj_doc is not None:
-            doc += '\n'.join(interpret_mode(obj_doc)) + '\n\n'
+            doc += '\n'.join(interpret_mode(obj_doc)) + '\n'
         if isinstance(node, ClassDef):
             for sub_node in node.body:
                 if isinstance(sub_node, (FunctionDef, ClassDef)):
@@ -195,7 +200,5 @@ class Parser:
 
     def compile(self) -> str:
         """Compile doc."""
-        doc = ""
-        for name in sorted(self.doc):
-            doc += self.doc[name]
-        return doc.rstrip() + '\n'
+        return "\n\n".join(self.doc[name].rstrip()
+                           for name in sorted(self.doc)) + '\n'

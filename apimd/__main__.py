@@ -8,11 +8,11 @@ __license__ = "MIT"
 __email__ = "pyslvs@gmail.com"
 
 from argparse import ArgumentParser
-from apimd import __version__
 
 
 def main() -> None:
     """Main function."""
+    from apimd import __version__
     ver = f"apimd {__version__}"
     parser = ArgumentParser(
         prog=ver,
