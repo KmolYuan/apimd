@@ -5,7 +5,10 @@
 
 A Python API compiler for universal Markdown syntax.
 
-Required Python 3.7 and above.
+Required Python 3.9 and above. (for `ast.unparse` function)
+
+This parser using `ast` standard library to extract the type annotations (without inference) and docstrings, similar to MyPy.
+The target module(s) can be come from at least Python 3.0, which is the lowest version with `ast` support.
 
 ## Install
 
@@ -18,16 +21,10 @@ pip install apimd
 From Git repository:
 
 ```bash
-python setup.py install
+pip install .
 ```
 
-Run directly:
-
-```bash
-python launcher.py --help
-```
-
-## Command
+## Command Line Interface
 
 Following syntax are allowed:
 
@@ -56,30 +53,23 @@ apimd module --dry
 
 ## Rules
 
-Basically, this compiler can extract docstrings
-from those "public" objects:
+Basically, this compiler can extract docstrings from those "public" names:
 
 + Modules
-+ Functions
-+ Generators
++ Functions & Generators (support async version)
 + Classes and its methods
 
 According to PEP 8, "**public**" means a name can't starts with underscore symbol "`_`",
-and the magic methods will be excluded, apart from `__init__` method.
-([Naming Conventions])
+except magic methods. ([Naming Conventions])
 
-Builtins object (`int`, `str`, `list`, `dict`, etc.) has no docstring their owned.
-So even they are public name style or listed in `__all__`,
-this compiler will still skip them (like `__version__` or `MY_GLOBAL`).
+Objects has no docstring their owned.
 Please pack them into functions or classes such as `Enum`,
 or mention them in the docstring of root module `__init__.py`.
 
-A root package force required a list object `__all__` to show all of global names
-to prevent wildcard import syntax (`from ... import *`).
-This compiler will not search a non-root package unless add a `__all__` list.
+A package should list the objects `__all__` to prevent other public style names and wildcard import syntax (`from ... import *`).
+If there has any import statements in the package root `__init__.py`, the API can be substitute into a short name, for example, change `a.b.c` to `a.c`.
 ([Global Variable Names])
 
-This compiler can detect properties, class attributes, static methods and abstract methods as well.
 Object attributes should be noted in the stub files or use Variable Annotations ([PEP 526]).
 
 [Naming Conventions]: https://www.python.org/dev/peps/pep-0008/#naming-conventions
