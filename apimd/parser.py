@@ -9,11 +9,12 @@ __email__ = "pyslvs@gmail.com"
 
 from typing import cast, Sequence, Iterator, Union, Optional
 from dataclasses import dataclass, field
+from os.path import commonprefix
 from html import escape
 from ast import (
     parse, unparse, get_docstring, AST, FunctionDef, AsyncFunctionDef, ClassDef,
     Assign, AnnAssign, Import, ImportFrom, Name, Expr, Subscript, BinOp, BitOr,
-    Tuple, Constant, Load, Attribute, arg, expr, stmt, arguments,
+    Tuple, List, Constant, Load, Attribute, arg, expr, stmt, arguments,
     NodeTransformer,
 )
 
@@ -25,7 +26,7 @@ TA = 'typing.TypeAlias'
 
 def _m(*names: str) -> str:
     """Get module names"""
-    return '.'.join(names)
+    return '.'.join(s for s in names if s)
 
 
 def is_public_family(name: str) -> bool:
@@ -38,11 +39,6 @@ def is_public_family(name: str) -> bool:
         if n.startswith('_'):
             return False
     return True
-
-
-def names_cmp(s: str) -> tuple[bool, str]:
-    """Name comparison function."""
-    return (not s.islower(), s.lower())
 
 
 def code(doc: str) -> str:
@@ -162,19 +158,32 @@ class Resolver(NodeTransformer):
 
 @dataclass
 class Parser:
+    """AST parser.
+
+    Usage:
+    >>> from apimd.parser import Parser
+    >>> p = Parser()
+    >>> with open("pkg_path", 'r') as f:
+    >>>     p.parse('pkg_name', f.read())
+    >>> s = p.compile()
+    """
+    level: dict[str, int] = field(default_factory=dict)
     doc: dict[str, str] = field(default_factory=dict)
-    docstring: dict[str, str] = field(default_factory=dict)
-    # TODO: Support __all__
-    all: set[str] = field(default_factory=set)
+    ds: dict[str, str] = field(default_factory=dict)
+    imp: dict[str, set[str]] = field(default_factory=dict)
+    root: dict[str, str] = field(default_factory=dict)
     alias: dict[str, str] = field(default_factory=dict)
 
-    def parser(self, root: str, script: str) -> None:
+    def parse(self, root: str, script: str) -> None:
         """Main parser of the entire module."""
         self.doc[root] = f"## Module `{root}`\n\n"
+        self.level[root] = root.count('.') + 1
+        self.imp[root] = set()
+        self.root[root] = root
         root_node = parse(script, type_comments=True)
         doc = get_docstring(root_node)
         if doc is not None:
-            self.docstring[root] = '\n'.join(interpret_mode(doc))
+            self.ds[root] = '\n'.join(interpret_mode(doc))
         for node in root_node.body:
             if isinstance(node, (Import, ImportFrom)):
                 self.imports(root, node)
@@ -192,14 +201,15 @@ class Parser:
                 else:
                     self.alias[_m(root, a.asname)] = a.name
         else:
+            m = root.rsplit('.', maxsplit=node.level)[0] if node.level else ''
             for a in node.names:
                 if a.asname is None:
-                    self.alias[_m(root, a.name)] = _m(node.module, a.name)
+                    self.alias[_m(root, a.name)] = _m(m, node.module, a.name)
                 else:
-                    self.alias[_m(root, a.asname)] = _m(node.module, a.name)
+                    self.alias[_m(root, a.asname)] = _m(m, node.module, a.name)
 
     def type_alias(self, root: str, node: _G) -> None:
-        """Set up global type alias."""
+        """Set up global type alias and public names."""
         if isinstance(node, AnnAssign):
             if (
                 isinstance(node.annotation, Name)
@@ -208,14 +218,24 @@ class Parser:
                 and node.value is not None
             ):
                 self.alias[_m(root, node.target.id)] = unparse(node.value)
-        else:
-            if (
-                node.type_comment is None
-                or self.alias.get(node.type_comment) == TA
-            ):
-                for sn in node.targets:
-                    if isinstance(sn, Name):
-                        self.alias[_m(root, sn.id)] = unparse(node.value)
+                return
+        if (
+            len(node.targets) == 1
+            and isinstance(node.targets[0], Name)
+            and node.targets[0].id == '__all__'
+        ):
+            if not isinstance(node.value, (Tuple, List)):
+                return
+            for e in node.value.elts:
+                if isinstance(e, Constant) and isinstance(e.value, str):
+                    self.imp[root].add(_m(root, e.value))
+        elif (
+            node.type_comment is None
+            or self.alias.get(node.type_comment) == TA
+        ):
+            for sn in node.targets:
+                if isinstance(sn, Name):
+                    self.alias[_m(root, sn.id)] = unparse(node.value)
 
     def api(self, root: str, node: _API, *, prefix: str = '') -> None:
         """Create API doc for only functions and classes.
@@ -226,6 +246,8 @@ class Parser:
             prefix += '.'
             level += '#'
         name = _m(root, prefix + node.name)
+        self.level[name] = self.level[root]
+        self.root[name] = root
         shirt_name = esc_usc(prefix + node.name)
         if isinstance(node, FunctionDef):
             self.doc[name] = level + f" {shirt_name}()\n\n"
@@ -233,7 +255,7 @@ class Parser:
             self.doc[name] = level + f" async {shirt_name}()\n\n"
         else:
             self.doc[name] = level + f" class {shirt_name}\n\n"
-        self.doc[name] += f"*Full name:* `{name}`\n\n"
+        self.doc[name] += "*Full name:* `{}`\n\n"
         if isinstance(node, ClassDef) and node.bases:
             self.doc[name] += list_table("Bases", (f"{unparse(d)}"
                                                    for d in node.bases))
@@ -247,11 +269,12 @@ class Parser:
             self.class_api(name, node.body)
         doc = get_docstring(node)
         if doc is not None:
-            self.docstring[name] = '\n'.join(interpret_mode(doc))
-        if isinstance(node, ClassDef):
-            for e in node.body:
-                if isinstance(e, (FunctionDef, AsyncFunctionDef, ClassDef)):
-                    self.api(root, e, prefix=node.name)
+            self.ds[name] = '\n'.join(interpret_mode(doc))
+        if not isinstance(node, ClassDef):
+            return
+        for e in node.body:
+            if isinstance(e, (FunctionDef, AsyncFunctionDef, ClassDef)):
+                self.api(root, e, prefix=node.name)
 
     def func_api(self, root: str, name: str, node: arguments,
                  returns: Optional[expr]) -> None:
@@ -288,16 +311,15 @@ class Parser:
 
     def class_api(self, name: str, body: list[stmt]) -> None:
         """Create class API."""
-        members = {}
+        mem = {}
         for e in body:
             if isinstance(e, AnnAssign) and isinstance(e.target, Name):
-                members[e.target.id] = unparse(e.annotation)
-        if not members:
+                mem[e.target.id] = unparse(e.annotation)
+        if not mem:
             return
         self.doc[name] += (
             "| Members | Type |\n|:" + '-' * 7 + ":|:" + '-' * 4 + ":|\n"
-            + '\n'.join(f"| `{n}` | {code(members[n])} |"
-                        for n in sorted(members))
+            + '\n'.join(f"| `{n}` | {code(mem[n])} |" for n in sorted(mem))
             + '\n\n')
 
     def table_annotation(self, root: str, args: Sequence[arg]) -> str:
@@ -320,7 +342,30 @@ class Parser:
         return unparse(r.generic_visit(r.visit(old_node)))
 
     def compile(self) -> str:
-        """Compile doc."""
-        return "\n\n".join((self.doc[n] + self.docstring.get(n, "")).rstrip()
+        """Compile documentation."""
+        for a in self.alias:
+            if (
+                self.alias[a] in self.doc
+                and a.count('.') < self.alias[a].count('.')
+            ):
+                for d in [self.doc, self.ds]:
+                    d[a] = d.pop(self.alias[a])
+                self.root.pop(self.alias[a])
+                self.root[a] = commonprefix([a, self.alias[a]]).rstrip('.')
+                self.level[a] = self.level.pop(self.alias[a]) - 1
+
+        def names_cmp(s: str):
+            """Name comparison function."""
+            return self.level[s], not s.islower(), s
+
+        def is_listed(s: str):
+            """Check the name is listed in `__all__`."""
+            all_list = self.imp[self.root[s]]
+            if all_list:
+                return s == self.root[s] or s in all_list
+            else:
+                return is_public_family(s)
+
+        return "\n\n".join((self.doc[n].format(n) + self.ds.get(n, "")).rstrip()
                            for n in sorted(self.doc, key=names_cmp)
-                           if is_public_family(n)) + '\n'
+                           if is_listed(n)) + '\n'

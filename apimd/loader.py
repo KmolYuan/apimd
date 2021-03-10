@@ -42,7 +42,7 @@ def loader(root_name: str, root: str) -> str:
         if path:
             logger.debug(f"{name} <= {path}")
             with open(path, 'r') as f:
-                p.parser(name, f.read())
+                p.parse(name, f.read())
         else:
             logger.warning(f"no Python source for {name}")
     return p.compile()

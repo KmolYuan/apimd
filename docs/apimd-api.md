@@ -4,6 +4,17 @@
 
 A Python API compiler for universal Markdown syntax.
 
+### gen_api()
+
+*Full name:* `apimd.gen_api`
+
+| root_names | pwd | * | prefix | dry | return |
+|:----------:|:---:|:---:|:------:|:---:|:------:|
+| `dict[str, str]` | `str` |   | `str` | `bool` | `Sequence[str]` |
+|   | '.' |   | 'docs' | False |   |
+
+Generate API. All rules are listed in the readme.
+
 ## Module `apimd.__main__`
 
 The command line launcher of apimd.
@@ -31,17 +42,6 @@ Compiler functions.
 | `str` | `str` |
 
 Return file path if existed.
-
-### gen_api()
-
-*Full name:* `apimd.loader.gen_api`
-
-| root_names | pwd | * | prefix | dry | return |
-|:----------:|:---:|:---:|:------:|:---:|:------:|
-| `dict[str, str]` | `str` |   | `str` | `bool` | `Sequence[str]` |
-|   | '.' |   | 'docs' | False |   |
-
-Generate API. All rules are listed in the readme.
 
 ### loader()
 
@@ -113,16 +113,6 @@ Check the name is come from public modules or not.
 
 Create one column table with a title.
 
-### names_cmp()
-
-*Full name:* `apimd.parser.names_cmp`
-
-| s | return |
-|:---:|:------:|
-| `str` | `tuple[bool, str]` |
-
-Name comparison function.
-
 ### table_literal()
 
 *Full name:* `apimd.parser.table_literal`
@@ -154,9 +144,22 @@ The split line of the table.
 | Members | Type |
 |:-------:|:----:|
 | `alias` | `dict[str, str]` |
-| `all` | `set[str]` |
 | `doc` | `dict[str, str]` |
-| `docstring` | `dict[str, str]` |
+| `ds` | `dict[str, str]` |
+| `imp` | `dict[str, set[str]]` |
+| `level` | `dict[str, int]` |
+| `root` | `dict[str, str]` |
+
+AST parser.
+
+Usage:
+```python
+from apimd.parser import Parser
+p = Parser()
+with open("pkg_path", 'r') as f:
+    p.parse('pkg_name', f.read())
+s = p.compile()
+```
 
 #### Parser.api()
 
@@ -188,7 +191,7 @@ Create class API.
 |:----:|:------:|
 | `Self` | `str` |
 
-Compile doc.
+Compile documentation.
 
 #### Parser.func_api()
 
@@ -210,9 +213,9 @@ Create function API.
 
 Save import names for 'typing.*'.
 
-#### Parser.parser()
+#### Parser.parse()
 
-*Full name:* `apimd.parser.Parser.parser`
+*Full name:* `apimd.parser.Parser.parse`
 
 | self | root | script | return |
 |:----:|:----:|:------:|:------:|
@@ -248,7 +251,7 @@ Annotations of the table.
 |:----:|:----:|:----:|:------:|
 | `Self` | `str` | <code>ast.Assign &#124; ast.AnnAssign</code> | `None` |
 
-Set up global type alias.
+Set up global type alias and public names.
 
 ### class Resolver
 
@@ -276,7 +279,7 @@ Annotation resolver.
 |:----:|:----:|:------:|
 | `Self` | `ast.Attribute` | `ast.AST` |
 
-Remove `typing.*` annotation.
+Remove `typing.*` prefix of annotation.
 
 #### Resolver.visit_Constant()
 
