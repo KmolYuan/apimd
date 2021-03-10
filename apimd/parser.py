@@ -13,7 +13,7 @@ from html import escape
 from ast import (
     parse, unparse, get_docstring, AST, FunctionDef, AsyncFunctionDef, ClassDef,
     Assign, AnnAssign, Import, ImportFrom, Name, Expr, Subscript, BinOp, BitOr,
-    Tuple, Constant, arg, expr, stmt, NodeTransformer, arguments,
+    Tuple, Constant, Load, arg, expr, stmt, arguments, NodeTransformer,
 )
 
 _I = Union[Import, ImportFrom]
@@ -254,18 +254,29 @@ class Parser:
         return " | ".join(e)
 
     def resolve(self, root: str, old_node: expr) -> str:
-        """Search and resolve global names."""
+        """Search and resolve global names in annotation."""
         alias = self.alias
 
         class V(NodeTransformer):
             """Custom replacer."""
+
+            def visit_Constant(self, node: Constant) -> AST:
+                """Check string is a name."""
+                if not isinstance(node.value, str):
+                    return node
+                try:
+                    e = cast(Expr, parse(node.value).body[0])
+                except SyntaxError:
+                    return node
+                else:
+                    return v.visit(e.value)
 
             def visit_Name(self, node: Name) -> AST:
                 """Replace global names with its expression recursively."""
                 name = root + '.' + node.id
                 if name in alias:
                     e = cast(Expr, parse(alias[name]).body[0])
-                    return V().visit(e.value)
+                    return v.visit(e.value)
                 else:
                     return node
 
@@ -282,7 +293,7 @@ class Parser:
                         b = BinOp(b, BitOr(), e)
                     return b
                 elif idf == OP:
-                    return BinOp(node.slice, BitOr(), Constant(value=None))
+                    return BinOp(node.slice, BitOr(), Constant(None))
                 else:
                     return node
 

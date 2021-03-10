@@ -151,7 +151,7 @@ Main parser of the entire module.
 |:----:|:----:|:--------:|:------:|
 | `Self` | `str` | `expr` | `str` |
 
-Search and resolve global names.
+Search and resolve global names in annotation.
 
 ### Parser.table_annotation()
 
