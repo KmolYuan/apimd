@@ -200,7 +200,7 @@ class Parser:
                     self.alias[_m(root, a.name)] = a.name
                 else:
                     self.alias[_m(root, a.asname)] = a.name
-        else:
+        elif node.module is not None:
             m = root.rsplit('.', maxsplit=node.level)[0] if node.level else ''
             for a in node.names:
                 if a.asname is None:
@@ -218,8 +218,7 @@ class Parser:
                 and node.value is not None
             ):
                 self.alias[_m(root, node.target.id)] = unparse(node.value)
-                return
-        if (
+        elif (
             len(node.targets) == 1
             and isinstance(node.targets[0], Name)
             and node.targets[0].id == '__all__'
