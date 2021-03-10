@@ -13,25 +13,19 @@ from html import escape
 from ast import (
     parse, unparse, get_docstring, AST, FunctionDef, AsyncFunctionDef, ClassDef,
     Assign, AnnAssign, Import, ImportFrom, Name, Expr, Subscript, BinOp, BitOr,
-    Tuple, Constant, Load, arg, expr, stmt, arguments, NodeTransformer,
+    Tuple, Constant, Load, Attribute, arg, expr, stmt, arguments,
+    NodeTransformer,
 )
 
 _I = Union[Import, ImportFrom]
 _G = Union[Assign, AnnAssign]
 _API = Union[FunctionDef, AsyncFunctionDef, ClassDef]
 TA = 'typing.TypeAlias'
-UN = 'typing.Union'
-OP = 'typing.Optional'
 
 
-def _m(name: str) -> str:
+def _m(*names: str) -> str:
     """Get module names"""
-    return name.rsplit('.', maxsplit=1)[0]
-
-
-def _n(name: str) -> str:
-    """Get base name."""
-    return name.rsplit('.', maxsplit=1)[1]
+    return '.'.join(names)
 
 
 def is_public_family(name: str) -> bool:
@@ -46,6 +40,11 @@ def is_public_family(name: str) -> bool:
     return True
 
 
+def names_cmp(s: str) -> tuple[bool, str]:
+    """Name comparison function."""
+    return (not s.islower(), s.lower())
+
+
 def code(doc: str) -> str:
     """Escape Markdown charters from code."""
     doc = escape(doc).replace('|', '&#124;')
@@ -53,6 +52,14 @@ def code(doc: str) -> str:
         return f"<code>{doc}</code>"
     else:
         return f"`{doc}`"
+
+
+def esc_usc(doc: str) -> str:
+    """Escape underscore in names."""
+    if doc.count('_') > 1:
+        return doc.replace('_', r"\_")
+    else:
+        return doc
 
 
 def interpret_mode(doc: str) -> Iterator[str]:
@@ -97,10 +104,68 @@ def list_table(title: str, listed: Iterator[str]) -> str:
             + '\n'.join(f"| {code(e)} |" for e in listed)) + '\n\n'
 
 
+class Resolver(NodeTransformer):
+    """Annotation resolver."""
+
+    def __init__(self, root: str, alias: dict[str, str]):
+        super(Resolver, self).__init__()
+        self.root = root
+        self.alias = alias
+
+    def visit_Constant(self, node: Constant) -> AST:
+        """Check string is a name."""
+        if not isinstance(node.value, str):
+            return node
+        try:
+            e = cast(Expr, parse(node.value).body[0])
+        except SyntaxError:
+            return node
+        else:
+            return self.visit(e.value)
+
+    def visit_Name(self, node: Name) -> AST:
+        """Replace global names with its expression recursively."""
+        name = _m(self.root, node.id)
+        if name in self.alias:
+            e = cast(Expr, parse(self.alias[name]).body[0])
+            return self.visit(e.value)
+        else:
+            return node
+
+    def visit_Subscript(self, node: Subscript) -> AST:
+        """Replace `Union[T1, T2, ...]` as T1 | T2 | ..."""
+        if not isinstance(node.value, Name):
+            return node
+        name = node.value.id
+        idf = self.alias.get(_m(self.root, name), name)
+        if idf == 'typing.Union':
+            if not isinstance(node.slice, Tuple):
+                return node.slice
+            b = node.slice.elts[0]
+            for e in node.slice.elts[1:]:
+                b = BinOp(b, BitOr(), e)
+            return b
+        elif idf == 'typing.Optional':
+            return BinOp(node.slice, BitOr(), Constant(None))
+        else:
+            return node
+
+    def visit_Attribute(self, node: Attribute) -> AST:
+        """Remove `typing.*` prefix of annotation."""
+        if not isinstance(node.value, Name):
+            return node
+        if node.value.id == 'typing':
+            return Name(node.attr, Load())
+        else:
+            return node
+
+
 @dataclass
 class Parser:
     doc: dict[str, str] = field(default_factory=dict)
     docstring: dict[str, str] = field(default_factory=dict)
+    # TODO: Support __all__
+    all: set[str] = field(default_factory=set)
     alias: dict[str, str] = field(default_factory=dict)
 
     def parser(self, root: str, script: str) -> None:
@@ -114,42 +179,35 @@ class Parser:
             if isinstance(node, (Import, ImportFrom)):
                 self.imports(root, node)
             if isinstance(node, (Assign, AnnAssign)):
-                self.g_alias(root, node)
+                self.type_alias(root, node)
             elif isinstance(node, (FunctionDef, AsyncFunctionDef, ClassDef)):
                 self.api(root, node)
 
     def imports(self, root: str, node: _I) -> None:
         """Save import names for 'typing.*'."""
-        for name in [TA, UN, OP]:
-            if isinstance(node, Import):
-                for a in node.names:
-                    if a.name != name:
-                        continue
-                    if a.asname is None:
-                        self.alias[root + '.' + name] = name
-                    else:
-                        self.alias[root + '.' + a.asname] = name
-            else:
-                if node.module != _m(name):
-                    return
-                for a in node.names:
-                    if a.name != _n(name):
-                        continue
-                    if a.asname is None:
-                        self.alias[root + '.' + _n(name)] = name
-                    else:
-                        self.alias[root + '.' + a.asname] = name
+        if isinstance(node, Import):
+            for a in node.names:
+                if a.asname is None:
+                    self.alias[_m(root, a.name)] = a.name
+                else:
+                    self.alias[_m(root, a.asname)] = a.name
+        else:
+            for a in node.names:
+                if a.asname is None:
+                    self.alias[_m(root, a.name)] = _m(node.module, a.name)
+                else:
+                    self.alias[_m(root, a.asname)] = _m(node.module, a.name)
 
-    def g_alias(self, root: str, node: _G) -> None:
-        """Assign to global alias."""
+    def type_alias(self, root: str, node: _G) -> None:
+        """Set up global type alias."""
         if isinstance(node, AnnAssign):
             if (
                 isinstance(node.annotation, Name)
                 and isinstance(node.target, Name)
-                and self.alias.get(root + '.' + node.annotation.id, '') == TA
+                and self.alias.get(_m(root, node.annotation.id), '') == TA
                 and node.value is not None
             ):
-                self.alias[root + '.' + node.target.id] = unparse(node.value)
+                self.alias[_m(root, node.target.id)] = unparse(node.value)
         else:
             if (
                 node.type_comment is None
@@ -157,21 +215,24 @@ class Parser:
             ):
                 for sn in node.targets:
                     if isinstance(sn, Name):
-                        self.alias[root + '.' + sn.id] = unparse(node.value)
+                        self.alias[_m(root, sn.id)] = unparse(node.value)
 
     def api(self, root: str, node: _API, *, prefix: str = '') -> None:
         """Create API doc for only functions and classes.
         Where `name` is the full name.
         """
+        level = '#' * 3
         if prefix:
             prefix += '.'
-        name = root + '.' + prefix + node.name
+            level += '#'
+        name = _m(root, prefix + node.name)
+        shirt_name = esc_usc(prefix + node.name)
         if isinstance(node, FunctionDef):
-            self.doc[name] = f"### {prefix + node.name}()\n\n"
+            self.doc[name] = level + f" {shirt_name}()\n\n"
         elif isinstance(node, AsyncFunctionDef):
-            self.doc[name] = f"### async {prefix + node.name}()\n\n"
+            self.doc[name] = level + f" async {shirt_name}()\n\n"
         else:
-            self.doc[name] = f"### class {prefix + node.name}\n\n"
+            self.doc[name] = level + f" class {shirt_name}\n\n"
         self.doc[name] += f"*Full name:* `{name}`\n\n"
         if isinstance(node, ClassDef) and node.bases:
             self.doc[name] += list_table("Bases", (f"{unparse(d)}"
@@ -255,53 +316,11 @@ class Parser:
 
     def resolve(self, root: str, old_node: expr) -> str:
         """Search and resolve global names in annotation."""
-        alias = self.alias
-
-        class V(NodeTransformer):
-            """Custom replacer."""
-
-            def visit_Constant(self, node: Constant) -> AST:
-                """Check string is a name."""
-                if not isinstance(node.value, str):
-                    return node
-                try:
-                    e = cast(Expr, parse(node.value).body[0])
-                except SyntaxError:
-                    return node
-                else:
-                    return v.visit(e.value)
-
-            def visit_Name(self, node: Name) -> AST:
-                """Replace global names with its expression recursively."""
-                name = root + '.' + node.id
-                if name in alias:
-                    e = cast(Expr, parse(alias[name]).body[0])
-                    return v.visit(e.value)
-                else:
-                    return node
-
-            def visit_Subscript(self, node: Subscript) -> AST:
-                """Replace `Union[T1, T2, ...]` as T1 | T2 | ..."""
-                if not isinstance(node.value, Name):
-                    return node
-                idf = alias.get(root + '.' + node.value.id, node.value.id)
-                if idf == UN:
-                    if not isinstance(node.slice, Tuple):
-                        return node.slice
-                    b = node.slice.elts[0]
-                    for e in node.slice.elts[1:]:
-                        b = BinOp(b, BitOr(), e)
-                    return b
-                elif idf == OP:
-                    return BinOp(node.slice, BitOr(), Constant(None))
-                else:
-                    return node
-
-        v = V()
-        return unparse(v.generic_visit(v.visit(old_node)))
+        r = Resolver(root, self.alias)
+        return unparse(r.generic_visit(r.visit(old_node)))
 
     def compile(self) -> str:
         """Compile doc."""
-        return "\n\n".join(
-            (self.doc[name] + self.docstring.get(name, "")).rstrip()
-            for name in sorted(self.doc) if is_public_family(name)) + '\n'
+        return "\n\n".join((self.doc[n] + self.docstring.get(n, "")).rstrip()
+                           for n in sorted(self.doc, key=names_cmp)
+                           if is_public_family(n)) + '\n'
