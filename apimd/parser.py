@@ -16,7 +16,7 @@ from inspect import getdoc
 from ast import (
     parse, unparse, get_docstring, AST, FunctionDef, AsyncFunctionDef, ClassDef,
     Assign, AnnAssign, Import, ImportFrom, Name, Expr, Subscript, BinOp, BitOr,
-    Tuple, List, Constant, Load, Attribute, arg, expr, stmt, arguments,
+    Call, Tuple, List, Constant, Load, Attribute, arg, expr, stmt, arguments,
     NodeTransformer,
 )
 
@@ -124,8 +124,14 @@ class Resolver(NodeTransformer):
     def visit_Name(self, node: Name) -> AST:
         """Replace global names with its expression recursively."""
         name = _m(self.root, node.id)
-        if name in self.alias:
+        if name in self.alias and name not in self.alias[name]:
             e = cast(Expr, parse(self.alias[name]).body[0])
+            # Support `TypeVar`
+            if isinstance(e.value, Call) and isinstance(e.value.func, Name):
+                func_name = e.value.func.id
+                idf = self.alias.get(_m(self.root, func_name), func_name)
+                if idf == 'typing.TypeVar':
+                    return node
             return self.visit(e.value)
         else:
             return node
@@ -365,7 +371,8 @@ class Parser:
                 and a.count('.') < self.alias[a].count('.')
             ):
                 for d in [self.doc, self.docstring]:
-                    d[a] = d.pop(self.alias[a])
+                    if self.alias[a] in d:
+                        d[a] = d.pop(self.alias[a])
                 self.root.pop(self.alias[a])
                 self.root[a] = commonprefix([a, self.alias[a]]).rstrip('.')
                 self.level[a] = self.level.pop(self.alias[a]) - 1

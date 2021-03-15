@@ -60,8 +60,8 @@ def loader(root: str, pwd: str, level: int) -> str:
             path += sep + "__init__"
         # Load its source or stub
         checked = False
-        for ext in ["py", ".pyi"]:
-            path_ext = path + "." + ext
+        for ext in [".py", ".pyi"]:
+            path_ext = path + ext
             if not isfile(path_ext):
                 continue
             logger.debug(f"{name} <= {path_ext}")
