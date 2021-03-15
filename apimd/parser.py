@@ -92,7 +92,8 @@ def table_split(args: Sequence[arg]) -> str:
 
 def table_literal(args: Sequence[Optional[expr]]) -> str:
     """Literals of the table."""
-    return " | ".join([f"{unparse(a)}" if a is not None else " " for a in args])
+    return " | ".join([f"{code(unparse(a))}" if a is not None else " "
+                       for a in args])
 
 
 def list_table(title: str, listed: Iterator[str]) -> str:
@@ -280,7 +281,7 @@ class Parser:
         if isinstance(node, (FunctionDef, AsyncFunctionDef)):
             self.func_api(root, name, node.args, node.returns)
         else:
-            self.class_api(name, node.body)
+            self.class_api(root, name, node.body)
         doc = get_docstring(node)
         if doc is not None:
             self.__set_doc(name, doc)
@@ -323,12 +324,12 @@ class Parser:
             self.doc[name] += f"| {table_literal(default)} |\n"
         self.doc[name] += '\n'
 
-    def class_api(self, name: str, body: list[stmt]) -> None:
+    def class_api(self, root: str, name: str, body: list[stmt]) -> None:
         """Create class API."""
         mem = {}
         for e in body:
             if isinstance(e, AnnAssign) and isinstance(e.target, Name):
-                mem[e.target.id] = unparse(e.annotation)
+                mem[e.target.id] = self.resolve(root, e.annotation)
         if not mem:
             return
         self.doc[name] += (

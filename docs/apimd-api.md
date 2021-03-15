@@ -11,7 +11,7 @@ A Python API compiler for universal Markdown syntax.
 | root_names | pwd | * | prefix | level | dry | return |
 |:----------:|:---:|:---:|:------:|:-----:|:---:|:------:|
 | `dict[str, str]` | `str` |   | `str` | `int` | `bool` | `Sequence[str]` |
-|   | '.' |   | 'docs' | 1 | False |   |
+|   | <code>&#x27;.&#x27;</code> |   | <code>&#x27;docs&#x27;</code> | `1` | `False` |   |
 
 Generate API. All rules are listed in the readme.
 
@@ -142,7 +142,7 @@ s = p.compile()
 | self | root | node | * | prefix | return |
 |:----:|:----:|:----:|:---:|:------:|:------:|
 | `Self` | `str` | <code>ast.FunctionDef &#124; ast.AsyncFunctionDef &#124; ast.ClassDef</code> |   | `str` | `None` |
-|   |   |   |   | '' |   |
+|   |   |   |   | <code>&#x27;&#x27;</code> |   |
 
 Create API doc for only functions and classes.
 Where `name` is the full name.
@@ -151,9 +151,9 @@ Where `name` is the full name.
 
 *Full name:* `apimd.parser.Parser.class_api`
 
-| self | name | body | return |
-|:----:|:----:|:----:|:------:|
-| `Self` | `str` | `list[ast.stmt]` | `None` |
+| self | root | name | body | return |
+|:----:|:----:|:----:|:----:|:------:|
+| `Self` | `str` | `str` | `list[ast.stmt]` | `None` |
 
 Create class API.
 
