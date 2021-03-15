@@ -10,7 +10,7 @@ __email__ = "pyslvs@gmail.com"
 from typing import cast, Sequence, Iterator, Union, Optional
 from types import ModuleType
 from dataclasses import dataclass, field
-from os.path import commonprefix
+from os.path import commonpath
 from html import escape
 from inspect import getdoc
 from ast import (
@@ -374,7 +374,10 @@ class Parser:
                     if self.alias[a] in d:
                         d[a] = d.pop(self.alias[a])
                 self.root.pop(self.alias[a])
-                self.root[a] = commonprefix([a, self.alias[a]]).rstrip('.')
+                self.root[a] = commonpath([
+                    a.replace('.', '/'),
+                    self.alias[a].replace('.', '/')
+                ]).replace('/', '.')
                 self.level[a] = self.level.pop(self.alias[a]) - 1
 
         def names_cmp(s: str):
