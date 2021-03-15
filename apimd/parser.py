@@ -365,9 +365,8 @@ class Parser:
             if doc is not None:
                 self.__set_doc(name, doc)
 
-    def compile(self) -> str:
-        """Compile documentation."""
-        # Alias substitution
+    def __find_alias(self):
+        """Alias substitution."""
         for n, a in self.alias.items():
             if a not in self.doc or n.count('.') >= a.count('.'):
                 continue
@@ -381,6 +380,10 @@ class Parser:
                 self.root[nw] = nw.removesuffix(name).strip('.')
                 self.level[nw] = self.level.pop(ch) - 1
 
+    def compile(self) -> str:
+        """Compile documentation."""
+        self.__find_alias()
+
         def names_cmp(s: str):
             """Name comparison function."""
             # TODO: need to fix orders
@@ -389,8 +392,8 @@ class Parser:
         def is_public(s: str):
             """Check the name is listed in `__all__`."""
             if s in self.imp:
-                for child in self.doc:
-                    if child.startswith(s + '.') and is_public_family(child):
+                for ch in self.doc:
+                    if ch.startswith(s + '.') and is_public_family(ch):
                         break
                 else:
                     return False
