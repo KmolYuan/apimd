@@ -106,26 +106,6 @@ Check the name is come from public modules or not.
 
 Create one column table with a title.
 
-### table_literal()
-
-*Full name:* `apimd.parser.table_literal`
-
-| args | return |
-|:----:|:------:|
-| <code>Sequence[expr &#124; None]</code> | `str` |
-
-Literals of the table.
-
-### table_split()
-
-*Full name:* `apimd.parser.table_split`
-
-| args | return |
-|:----:|:------:|
-| `Sequence[ast.arg]` | `str` |
-
-The split line of the table.
-
 ### class Parser
 
 *Full name:* `apimd.parser.Parser`
@@ -314,3 +294,23 @@ Replace global names with its expression recursively.
 | `Self` | `ast.Subscript` | `ast.AST` |
 
 Replace `Union[T1, T2, ...]` as T1 | T2 | ...
+
+### table_literal()
+
+*Full name:* `apimd.parser.table_literal`
+
+| args | return |
+|:----:|:------:|
+| <code>Sequence[expr &#124; None]</code> | `str` |
+
+Literals of the table.
+
+### table_split()
+
+*Full name:* `apimd.parser.table_split`
+
+| args | return |
+|:----:|:------:|
+| `Sequence[ast.arg]` | `str` |
+
+The split line of the table.

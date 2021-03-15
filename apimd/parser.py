@@ -386,8 +386,7 @@ class Parser:
 
         def names_cmp(s: str):
             """Name comparison function."""
-            # TODO: need to fix orders
-            return self.level[s], not s.islower(), s
+            return self.level[s], s.lower(), not s.islower()
 
         def is_public(s: str):
             """Check the name is listed in `__all__`."""
