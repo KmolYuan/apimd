@@ -15,6 +15,9 @@ from os import mkdir
 from os.path import isdir, isfile, join, sep
 from logging import getLogger, basicConfig, DEBUG
 from pkgutil import walk_packages
+from importlib.abc import Loader
+from importlib.machinery import EXTENSION_SUFFIXES
+from importlib.util import spec_from_file_location, module_from_spec
 from .parser import Parser
 
 basicConfig(stream=stdout, level=DEBUG, format="%(message)s")
@@ -33,6 +36,17 @@ def _write(path: str, doc: str) -> None:
         f.write(doc)
 
 
+def _load_module(name: str, path: str, p: Parser) -> bool:
+    """Load module directly."""
+    s = spec_from_file_location(name, path)
+    if s is not None and isinstance(s.loader, Loader):
+        m = module_from_spec(s)
+        s.loader.exec_module(m)
+        p.load_docstring(name, m)
+        return True
+    return False
+
+
 def loader(root: str, pwd: str, level: int) -> str:
     """Package searching algorithm."""
     p = Parser(level)
@@ -41,20 +55,29 @@ def loader(root: str, pwd: str, level: int) -> str:
         name = info.name.replace('-stubs', "")
         if not name.startswith(root):
             continue
-        path = info.name.replace('.', sep)
+        path = join(pwd, info.name.replace('.', sep))
         if info.ispkg:
-            path = join(path, "__init__")
+            path += sep + "__init__"
         # Load its source or stub
         checked = False
         for ext in ["py", ".pyi"]:
-            path_ext = join(pwd, path + "." + ext)
+            path_ext = path + "." + ext
             if not isfile(path_ext):
                 continue
             logger.debug(f"{name} <= {path_ext}")
             p.parse(name, _read(path_ext))
             checked = True
-        # TODO: Try to load module here
-        if not checked:
+        if checked:
+            continue
+        # Try to load module here
+        for ext in EXTENSION_SUFFIXES:
+            path_ext = path + ext
+            if not isfile(path_ext):
+                continue
+            logger.debug(f"{name} <= {path_ext}")
+            if _load_module(name, path_ext, p):
+                break
+        else:
             logger.warning(f"no source or module for {name}")
     return p.compile()
 

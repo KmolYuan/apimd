@@ -8,9 +8,11 @@ __license__ = "MIT"
 __email__ = "pyslvs@gmail.com"
 
 from typing import cast, Sequence, Iterator, Union, Optional
+from types import ModuleType
 from dataclasses import dataclass, field
 from os.path import commonprefix
 from html import escape
+from inspect import getdoc
 from ast import (
     parse, unparse, get_docstring, AST, FunctionDef, AsyncFunctionDef, ClassDef,
     Assign, AnnAssign, Import, ImportFrom, Name, Expr, Subscript, BinOp, BitOr,
@@ -170,10 +172,14 @@ class Parser:
     b_level: int = 1
     level: dict[str, int] = field(default_factory=dict)
     doc: dict[str, str] = field(default_factory=dict)
-    ds: dict[str, str] = field(default_factory=dict)
+    docstring: dict[str, str] = field(default_factory=dict)
     imp: dict[str, set[str]] = field(default_factory=dict)
     root: dict[str, str] = field(default_factory=dict)
     alias: dict[str, str] = field(default_factory=dict)
+
+    def __set_doc(self, name: str, doc: str) -> None:
+        """Set docstring."""
+        self.docstring[name] = '\n'.join(interpret_mode(doc))
 
     def parse(self, root: str, script: str) -> None:
         """Main parser of the entire module."""
@@ -184,7 +190,7 @@ class Parser:
         root_node = parse(script, type_comments=True)
         doc = get_docstring(root_node)
         if doc is not None:
-            self.ds[root] = '\n'.join(interpret_mode(doc))
+            self.__set_doc(root, doc)
         for node in root_node.body:
             if isinstance(node, (Import, ImportFrom)):
                 self.imports(root, node)
@@ -269,7 +275,7 @@ class Parser:
             self.class_api(name, node.body)
         doc = get_docstring(node)
         if doc is not None:
-            self.ds[name] = '\n'.join(interpret_mode(doc))
+            self.__set_doc(name, doc)
         if not isinstance(node, ClassDef):
             return
         for e in node.body:
@@ -341,6 +347,16 @@ class Parser:
         r = Resolver(root, self.alias)
         return unparse(r.generic_visit(r.visit(old_node)))
 
+    def load_docstring(self, root: str, m: ModuleType) -> None:
+        """Load docstring from the module."""
+        for name in self.doc:
+            if not name.startswith(root):
+                continue
+            attr = name.removeprefix(root + '.')
+            doc = getdoc(getattr(m, attr, None))
+            if doc is not None:
+                self.__set_doc(name, doc)
+
     def compile(self) -> str:
         """Compile documentation."""
         for a in self.alias:
@@ -348,7 +364,7 @@ class Parser:
                 self.alias[a] in self.doc
                 and a.count('.') < self.alias[a].count('.')
             ):
-                for d in [self.doc, self.ds]:
+                for d in [self.doc, self.docstring]:
                     d[a] = d.pop(self.alias[a])
                 self.root.pop(self.alias[a])
                 self.root[a] = commonprefix([a, self.alias[a]]).rstrip('.')
@@ -366,6 +382,7 @@ class Parser:
             else:
                 return is_public_family(s)
 
-        return "\n\n".join((self.doc[n].format(n) + self.ds.get(n, "")).rstrip()
-                           for n in sorted(self.doc, key=names_cmp)
-                           if is_listed(n)) + '\n'
+        return "\n\n".join(
+            (self.doc[n].format(n) + self.docstring.get(n, "")).rstrip()
+            for n in sorted(self.doc, key=names_cmp) if is_listed(n)
+        ) + '\n'

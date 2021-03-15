@@ -139,7 +139,7 @@ The split line of the table.
 | `alias` | `dict[str, str]` |
 | `b_level` | `int` |
 | `doc` | `dict[str, str]` |
-| `ds` | `dict[str, str]` |
+| `docstring` | `dict[str, str]` |
 | `imp` | `dict[str, set[str]]` |
 | `level` | `dict[str, int]` |
 | `root` | `dict[str, str]` |
@@ -206,6 +206,16 @@ Create function API.
 | `Self` | `str` | <code>ast.Import &#124; ast.ImportFrom</code> | `None` |
 
 Save import names for 'typing.*'.
+
+#### Parser.load_docstring()
+
+*Full name:* `apimd.parser.Parser.load_docstring`
+
+| self | root | m | return |
+|:----:|:----:|:---:|:------:|
+| `Self` | `str` | `types.ModuleType` | `None` |
+
+Load docstring from the module.
 
 #### Parser.parse()
 
