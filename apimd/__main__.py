@@ -25,27 +25,17 @@ def main() -> None:
         default=None,
         nargs='+',
         type=str,
-        help="the module name that installed or in the current path, "
-             "syntax Module-Name=module_name can specify a package name for it"
+        help="the module name in the current path, use the syntax "
+             "`Module-Name=module_name` to specify a name for it"
     )
-    parser.add_argument(
-        '-c',
-        '--current',
-        metavar="DIR",
-        default='.',
-        nargs='?',
-        type=str,
-        help="current directory"
-    )
-    parser.add_argument(
-        '-d',
-        '--dir',
-        metavar="DIR",
-        default='docs',
-        nargs='?',
-        type=str,
-        help="output to a specific directory"
-    )
+    for cmd, f, h in [
+        (('-c', '--current'), ".", "current directory"),
+        (('-d', '--dir'), "docs", "output to a specific directory"),
+    ]:
+        parser.add_argument(*cmd, metavar="DIR", default=f, nargs='?',
+                            type=str, help=h)
+    parser.add_argument('--level', metavar="LEVEL", default=1, nargs='?',
+                        type=int, help="the starting level of the sections")
     parser.add_argument(
         '--dry',
         action='store_true',
@@ -61,7 +51,8 @@ def main() -> None:
             n[1] = n[0]
         root_names[n[0]] = n[1]
     from apimd.loader import gen_api
-    gen_api(root_names, arg.current, prefix=arg.dir, dry=arg.dry)
+    gen_api(root_names, arg.current, prefix=arg.dir, level=arg.level,
+            dry=arg.dry)
 
 
 if __name__ == '__main__':

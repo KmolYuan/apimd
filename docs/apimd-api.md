@@ -8,12 +8,15 @@ A Python API compiler for universal Markdown syntax.
 
 *Full name:* `apimd.gen_api`
 
-| root_names | pwd | * | prefix | dry | return |
-|:----------:|:---:|:---:|:------:|:---:|:------:|
-| `dict[str, str]` | `str` |   | `str` | `bool` | `Sequence[str]` |
-|   | '.' |   | 'docs' | False |   |
+| root_names | pwd | * | prefix | level | dry | return |
+|:----------:|:---:|:---:|:------:|:-----:|:---:|:------:|
+| `dict[str, str]` | `str` |   | `str` | `int` | `bool` | `Sequence[str]` |
+|   | '.' |   | 'docs' | 1 | False |   |
 
 Generate API. All rules are listed in the readme.
+
+The path `pwd` is the current path that provided to `pkgutil`,
+which allows the "site-packages" directory to be used.
 
 ## Module `apimd.__main__`
 
@@ -33,23 +36,13 @@ Main function.
 
 Compiler functions.
 
-### find()
-
-*Full name:* `apimd.loader.find`
-
-| path | return |
-|:----:|:------:|
-| `str` | `str` |
-
-Return file path if existed.
-
 ### loader()
 
 *Full name:* `apimd.loader.loader`
 
-| root_name | root | return |
-|:---------:|:----:|:------:|
-| `str` | `str` | `str` |
+| root | pwd | level | return |
+|:----:|:---:|:-----:|:------:|
+| `str` | `str` | `int` | `str` |
 
 Package searching algorithm.
 
@@ -144,6 +137,7 @@ The split line of the table.
 | Members | Type |
 |:-------:|:----:|
 | `alias` | `dict[str, str]` |
+| `b_level` | `int` |
 | `doc` | `dict[str, str]` |
 | `ds` | `dict[str, str]` |
 | `imp` | `dict[str, set[str]]` |

@@ -167,6 +167,7 @@ class Parser:
     >>>     p.parse('pkg_name', f.read())
     >>> s = p.compile()
     """
+    b_level: int = 1
     level: dict[str, int] = field(default_factory=dict)
     doc: dict[str, str] = field(default_factory=dict)
     ds: dict[str, str] = field(default_factory=dict)
@@ -176,7 +177,7 @@ class Parser:
 
     def parse(self, root: str, script: str) -> None:
         """Main parser of the entire module."""
-        self.doc[root] = f"## Module `{root}`\n\n"
+        self.doc[root] = '#' * self.b_level + f"# Module `{root}`\n\n"
         self.level[root] = root.count('.') + 1
         self.imp[root] = set()
         self.root[root] = root
@@ -240,7 +241,7 @@ class Parser:
         """Create API doc for only functions and classes.
         Where `name` is the full name.
         """
-        level = '#' * 3
+        level = '#' * (self.b_level + 2)
         if prefix:
             prefix += '.'
             level += '#'

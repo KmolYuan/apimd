@@ -14,7 +14,6 @@ from sys import stdout
 from os import mkdir
 from os.path import isdir, isfile, join, sep
 from logging import getLogger, basicConfig, DEBUG
-from setuptools import find_packages
 from pkgutil import walk_packages
 from .parser import Parser
 
@@ -22,29 +21,41 @@ basicConfig(stream=stdout, level=DEBUG, format="%(message)s")
 logger = getLogger()
 
 
-def find(path: str) -> str:
-    """Return file path if existed."""
-    return path if isfile(path) else ""
+def _read(path: str) -> str:
+    """Read the script from file."""
+    with open(path, 'r') as f:
+        return f.read()
 
 
-def loader(root_name: str, root: str) -> str:
+def _write(path: str, doc: str) -> None:
+    """Write text to the file."""
+    with open(path, 'w+', encoding='utf-8') as f:
+        f.write(doc)
+
+
+def loader(root: str, pwd: str, level: int) -> str:
     """Package searching algorithm."""
-    p = Parser()
-    for info in walk_packages([root]):
+    p = Parser(level)
+    for info in walk_packages([pwd]):
         # PEP561
         name = info.name.replace('-stubs', "")
-        if not name.startswith(root_name):
+        if not name.startswith(root):
             continue
         path = info.name.replace('.', sep)
         if info.ispkg:
             path = join(path, "__init__")
-        path = find(join(root, path + ".pyi")) or find(join(root, path + ".py"))
-        if path:
-            logger.debug(f"{name} <= {path}")
-            with open(path, 'r') as f:
-                p.parse(name, f.read())
-        else:
-            logger.warning(f"no Python source for {name}")
+        # Load its source or stub
+        checked = False
+        for ext in ["py", ".pyi"]:
+            path_ext = join(pwd, path + "." + ext)
+            if not isfile(path_ext):
+                continue
+            logger.debug(f"{name} <= {path_ext}")
+            p.parse(name, _read(path_ext))
+            checked = True
+        # TODO: Try to load module here
+        if not checked:
+            logger.warning(f"no source or module for {name}")
     return p.compile()
 
 
@@ -53,25 +64,30 @@ def gen_api(
     pwd: str = '.',
     *,
     prefix: str = 'docs',
+    level: int = 1,
     dry: bool = False
 ) -> Sequence[str]:
-    """Generate API. All rules are listed in the readme."""
+    """Generate API. All rules are listed in the readme.
+
+    The path `pwd` is the current path that provided to `pkgutil`,
+    which allows the "site-packages" directory to be used.
+    """
     if not isdir(prefix):
         logger.debug(f"Create directory: {prefix}")
         mkdir(prefix)
     docs = []
     for title, name in root_names.items():
         logger.debug(f"Load root: {name} ({title})")
-        if not find_packages(pwd, include=[name]):
+        doc = loader(name, pwd, level)
+        if not doc:
             logger.warning(f"'{name}' can not be found")
             continue
-        doc = f"# {title} API\n\n" + loader(name, pwd)
+        doc = '#' * level + f" {title} API\n\n" + doc
         path = join(prefix, f"{name.replace('_', '-')}-api.md")
         logger.debug(f"Write file: {path}")
         if dry:
             logger.debug(doc)
         else:
-            with open(path, 'w+', encoding='utf-8') as f:
-                f.write(doc)
+            _write(path, doc)
         docs.append(doc)
     return docs
