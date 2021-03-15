@@ -39,7 +39,7 @@ def main() -> None:
     parser.add_argument(
         '--dry',
         action='store_true',
-        help="print the result instead write the file"
+        help="show the result instead write the file"
     )
     arg = parser.parse_args()
     root_names = {}

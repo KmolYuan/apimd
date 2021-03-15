@@ -83,7 +83,7 @@ Replace doctest as markdown Python code.
 Usage:
 ```python
 from apimd.parser import interpret_mode
-'\n'.join(interpret_mode(">>> print(\"Hello\")"))
+'\n'.join(interpret_mode(">>> a = \"Hello\""))
 ```
 
 ### is\_public\_family()

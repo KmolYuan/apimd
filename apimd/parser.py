@@ -10,7 +10,6 @@ __email__ = "pyslvs@gmail.com"
 from typing import cast, Sequence, Iterator, Union, Optional
 from types import ModuleType
 from dataclasses import dataclass, field
-from os.path import commonpath
 from html import escape
 from inspect import getdoc
 from ast import (
@@ -65,7 +64,7 @@ def interpret_mode(doc: str) -> Iterator[str]:
 
     Usage:
     >>> from apimd.parser import interpret_mode
-    >>> '\n'.join(interpret_mode(">>> print(\"Hello\")"))
+    >>> '\n'.join(interpret_mode(">>> a = \"Hello\""))
     """
     keep = False
     lines = doc.split('\n')
@@ -214,7 +213,10 @@ class Parser:
                 else:
                     self.alias[_m(root, a.asname)] = a.name
         elif node.module is not None:
-            m = root.rsplit('.', maxsplit=node.level)[0] if node.level else ''
+            if node.level:
+                m = root.rsplit('.', maxsplit=node.level - 1)[0]
+            else:
+                m = ''
             for a in node.names:
                 if a.asname is None:
                     self.alias[_m(root, a.name)] = _m(m, node.module, a.name)
@@ -365,27 +367,33 @@ class Parser:
 
     def compile(self) -> str:
         """Compile documentation."""
-        for a in self.alias:
-            if (
-                self.alias[a] in self.doc
-                and a.count('.') < self.alias[a].count('.')
-            ):
-                for d in [self.doc, self.docstring]:
-                    if self.alias[a] in d:
-                        d[a] = d.pop(self.alias[a])
-                self.root.pop(self.alias[a])
-                self.root[a] = commonpath([
-                    a.replace('.', '/'),
-                    self.alias[a].replace('.', '/')
-                ]).replace('/', '.')
-                self.level[a] = self.level.pop(self.alias[a]) - 1
+        # Alias substitution
+        for n, a in self.alias.items():
+            if a not in self.doc or n.count('.') >= a.count('.'):
+                continue
+            for ch in list(self.doc):
+                if not ch.startswith(a):
+                    continue
+                nw = n + ch.removeprefix(a)
+                self.doc[nw] = self.doc.pop(ch)
+                self.docstring[nw] = self.docstring.pop(ch, "")
+                name = ch.removeprefix(self.root.pop(ch))
+                self.root[nw] = nw.removesuffix(name).strip('.')
+                self.level[nw] = self.level.pop(ch) - 1
 
         def names_cmp(s: str):
             """Name comparison function."""
+            # TODO: need to fix orders
             return self.level[s], not s.islower(), s
 
-        def is_listed(s: str):
+        def is_public(s: str):
             """Check the name is listed in `__all__`."""
+            if s in self.imp:
+                for child in self.doc:
+                    if child.startswith(s + '.') and is_public_family(child):
+                        break
+                else:
+                    return False
             all_list = self.imp[self.root[s]]
             if all_list:
                 return s == self.root[s] or s in all_list
@@ -394,5 +402,5 @@ class Parser:
 
         return "\n\n".join(
             (self.doc[n].format(n) + self.docstring.get(n, "")).rstrip()
-            for n in sorted(self.doc, key=names_cmp) if is_listed(n)
+            for n in sorted(self.doc, key=names_cmp) if is_public(n)
         ) + '\n'
