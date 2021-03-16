@@ -125,7 +125,8 @@ def gen_api(
         path = join(prefix, f"{name.replace('_', '-')}-api.md")
         logger.info(f"Write file: {path}")
         if dry:
-            logger.debug(doc)
+            logger.info('=' * 12)
+            logger.info(doc)
         else:
             _write(path, doc)
         docs.append(doc)

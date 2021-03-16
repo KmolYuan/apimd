@@ -8,7 +8,7 @@ A Python API compiler for universal Markdown syntax.
 Required Python 3.9 and above. (for `ast.unparse` function)
 
 This parser using `ast` standard library to extract the type annotations (without inference) and docstrings, similar to MyPy.
-The target module(s) can be come from at least Python 3.0, which is the lowest version with `ast` support.
+The target modules must be from at least Python 3.0, which is the lowest version with `ast` support.
 
 ## Install
 
@@ -36,9 +36,8 @@ apimd "Module Name=module_name"
 
 The first is the readable name of the package,
 and the second is the name used in import syntax.
-Please make sure you can import the package by the given name in current path.
 
-The output path can be chosen by "-d" and "--dir" option, default is `docs`.
+The output path can be chosen by "-d" or "--dir" option, default is `docs`.
 Multiple modules are supported either.
 
 ```bash
