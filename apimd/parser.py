@@ -3,7 +3,7 @@
 """Data structures."""
 
 __author__ = "Yuan Chang"
-__copyright__ = "Copyright (C) 2020"
+__copyright__ = "Copyright (C) 2020-2021"
 __license__ = "MIT"
 __email__ = "pyslvs@gmail.com"
 
