@@ -29,7 +29,7 @@ def main() -> None:
              "`Module-Name=module_name` to specify a name for it"
     )
     for cmd, f, h in [
-        (('-c', '--current'), ".", "current directory"),
+        (('-c', '--current'), ".", "additional current directory"),
         (('-d', '--dir'), "docs", "output to a specific directory"),
     ]:
         parser.add_argument(*cmd, metavar="DIR", default=f, nargs='?',

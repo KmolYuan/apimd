@@ -38,7 +38,7 @@ The first is the readable name of the package,
 and the second is the name used in import syntax.
 Please make sure you can import the package by the given name in current path.
 
-The output path can be choose by "-d" and "--dir" option, default is `docs`.
+The output path can be chosen by "-d" and "--dir" option, default is `docs`.
 Multiple modules are supported either.
 
 ```bash
@@ -59,7 +59,7 @@ Basically, this compiler can extract docstrings from those "public" names:
 + Functions & Generators (support async version)
 + Classes and its methods
 
-According to PEP 8, "**public**" means a name can't starts with underscore symbol "`_`",
+According to PEP 8, "**public**" means a name can't start with underscore symbol "`_`",
 except magic methods. ([Naming Conventions])
 
 Normal objects are no docstring their owned.

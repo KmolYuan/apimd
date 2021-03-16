@@ -9,14 +9,15 @@ __copyright__ = "Copyright (C) 2020-2021"
 __license__ = "MIT"
 __email__ = "pyslvs@gmail.com"
 
-from typing import Sequence
+from typing import Sequence, Optional
+from sys import path as sys_path
 from os import mkdir
-from os.path import isdir, isfile, join, sep
+from os.path import isdir, isfile, join, sep, dirname
 from logging import DEBUG
 from pkgutil import walk_packages
 from importlib.abc import Loader
 from importlib.machinery import EXTENSION_SUFFIXES
-from importlib.util import spec_from_file_location, module_from_spec
+from importlib.util import find_spec, spec_from_file_location, module_from_spec
 from colorlog import getLogger, StreamHandler, ColoredFormatter
 from .parser import Parser
 
@@ -37,6 +38,14 @@ def _write(path: str, doc: str) -> None:
     """Write text to the file."""
     with open(path, 'w+', encoding='utf-8') as f:
         f.write(doc)
+
+
+def _site_path(name: str) -> str:
+    """Get the path in site-packages if exist."""
+    s = find_spec(name)
+    if s is None or s.submodule_search_locations is None:
+        return ""
+    return dirname(s.submodule_search_locations[0])
 
 
 def _load_module(name: str, path: str, p: Parser) -> bool:
@@ -89,7 +98,7 @@ def loader(root: str, pwd: str, level: int) -> str:
 
 def gen_api(
     root_names: dict[str, str],
-    pwd: str = '.',
+    pwd: Optional[str] = None,
     *,
     prefix: str = 'docs',
     level: int = 1,
@@ -100,13 +109,15 @@ def gen_api(
     The path `pwd` is the current path that provided to `pkgutil`,
     which allows the "site-packages" directory to be used.
     """
+    if pwd is not None:
+        sys_path.append(pwd)
     if not isdir(prefix):
         logger.info(f"Create directory: {prefix}")
         mkdir(prefix)
     docs = []
     for title, name in root_names.items():
         logger.info(f"Load root: {name} ({title})")
-        doc = loader(name, pwd, level)
+        doc = loader(name, _site_path(name), level)
         if not doc.strip():
             logger.warning(f"'{name}' can not be found")
             continue

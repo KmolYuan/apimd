@@ -10,8 +10,8 @@ A Python API compiler for universal Markdown syntax.
 
 | root_names | pwd | * | prefix | level | dry | return |
 |:----------:|:---:|:---:|:------:|:-----:|:---:|:------:|
-| `dict[str, str]` | `str` |   | `str` | `int` | `bool` | `Sequence[str]` |
-|   | <code>&#x27;.&#x27;</code> |   | <code>&#x27;docs&#x27;</code> | `1` | `False` |   |
+| `dict[str, str]` | <code>str &#124; None</code> |   | `str` | `int` | `bool` | `Sequence[str]` |
+|   | `None` |   | <code>&#x27;docs&#x27;</code> | `1` | `False` |   |
 
 Generate API. All rules are listed in the readme.
 
