@@ -59,16 +59,18 @@ def loader(root: str, pwd: str, level: int) -> str:
         if info.ispkg:
             path += sep + "__init__"
         # Load its source or stub
-        checked = False
+        pure_py = False
         for ext in [".py", ".pyi"]:
             path_ext = path + ext
             if not isfile(path_ext):
                 continue
             logger.debug(f"{name} <= {path_ext}")
             p.parse(name, _read(path_ext))
-            checked = True
-        if checked:
+            if ext == ".py":
+                pure_py = True
+        if pure_py or name in p.docstring:
             continue
+        logger.warning(f"! not fully documented, loading extension module")
         # Try to load module here
         for ext in EXTENSION_SUFFIXES:
             path_ext = path + ext
@@ -78,7 +80,7 @@ def loader(root: str, pwd: str, level: int) -> str:
             if _load_module(name, path_ext, p):
                 break
         else:
-            logger.warning(f"no source or module for {name}")
+            logger.warning(f"! no module for {name}")
     return p.compile()
 
 
@@ -102,8 +104,8 @@ def gen_api(
     for title, name in root_names.items():
         logger.debug(f"Load root: {name} ({title})")
         doc = loader(name, pwd, level)
-        if not doc:
-            logger.warning(f"'{name}' can not be found")
+        if not doc.strip():
+            logger.warning(f"! '{name}' can not be found")
             continue
         doc = '#' * level + f" {title} API\n\n" + doc
         path = join(prefix, f"{name.replace('_', '-')}-api.md")

@@ -30,6 +30,16 @@ def _m(*names: str) -> str:
     return '.'.join(s for s in names if s)
 
 
+def _attr(obj: object, attr: str) -> object:
+    """Nest `getattr` function."""
+    n = obj
+    for p in attr.split('.'):
+        n = getattr(n, p, None)
+        if n is None:
+            return None
+    return n
+
+
 def is_public_family(name: str) -> bool:
     """Check the name is come from public modules or not."""
     for n in name.split('.'):
@@ -51,7 +61,7 @@ def code(doc: str) -> str:
         return f"`{doc}`"
 
 
-def esc_usc(doc: str) -> str:
+def esc_underscore(doc: str) -> str:
     """Escape underscore in names."""
     if doc.count('_') > 1:
         return doc.replace('_', r"\_")
@@ -263,7 +273,7 @@ class Parser:
         name = _m(root, prefix + node.name)
         self.level[name] = self.level[root]
         self.root[name] = root
-        shirt_name = esc_usc(prefix + node.name)
+        shirt_name = esc_underscore(prefix + node.name)
         if isinstance(node, FunctionDef):
             self.doc[name] = level + f" {shirt_name}()\n\n"
         elif isinstance(node, AsyncFunctionDef):
@@ -362,7 +372,7 @@ class Parser:
             if not name.startswith(root):
                 continue
             attr = name.removeprefix(root + '.')
-            doc = getdoc(getattr(m, attr, None))
+            doc = getdoc(_attr(m, attr))
             if doc is not None:
                 self.__set_doc(name, doc)
 
