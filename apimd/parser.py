@@ -366,10 +366,14 @@ class Parser:
             if doc is not None:
                 self.__set_doc(name, doc)
 
+    def __is_immediate_family(self, n1: str, n2: str) -> bool:
+        """Check the name is immediate family."""
+        return n2.startswith(n1.removesuffix(n2.removeprefix(self.root[n2])))
+
     def __find_alias(self):
         """Alias substitution."""
         for n, a in self.alias.items():
-            if a not in self.doc or n.count('.') >= a.count('.'):
+            if a not in self.doc or not self.__is_immediate_family(n, a):
                 continue
             for ch in list(self.doc):
                 if not ch.startswith(a):
