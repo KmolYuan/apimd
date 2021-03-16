@@ -10,18 +10,21 @@ __license__ = "MIT"
 __email__ = "pyslvs@gmail.com"
 
 from typing import Sequence
-from sys import stdout
 from os import mkdir
 from os.path import isdir, isfile, join, sep
-from logging import getLogger, basicConfig, DEBUG
+from logging import DEBUG
 from pkgutil import walk_packages
 from importlib.abc import Loader
 from importlib.machinery import EXTENSION_SUFFIXES
 from importlib.util import spec_from_file_location, module_from_spec
+from colorlog import getLogger, StreamHandler, ColoredFormatter
 from .parser import Parser
 
-basicConfig(stream=stdout, level=DEBUG, format="%(message)s")
+handler = StreamHandler()
+handler.setFormatter(ColoredFormatter("%(log_color)s%(message)s"))
 logger = getLogger()
+logger.setLevel(DEBUG)
+logger.addHandler(handler)
 
 
 def _read(path: str) -> str:
@@ -70,17 +73,17 @@ def loader(root: str, pwd: str, level: int) -> str:
                 pure_py = True
         if pure_py or name in p.docstring:
             continue
-        logger.warning(f"! not fully documented, loading extension module")
+        logger.warning(f"not fully documented, loading extension module")
         # Try to load module here
         for ext in EXTENSION_SUFFIXES:
             path_ext = path + ext
             if not isfile(path_ext):
                 continue
-            logger.debug(f"{name} <= {path_ext}")
+            logger.warning(f"{name} <= {path_ext}")
             if _load_module(name, path_ext, p):
                 break
         else:
-            logger.warning(f"! no module for {name}")
+            logger.error(f"no module for {name} in this platform")
     return p.compile()
 
 
@@ -98,18 +101,18 @@ def gen_api(
     which allows the "site-packages" directory to be used.
     """
     if not isdir(prefix):
-        logger.debug(f"Create directory: {prefix}")
+        logger.info(f"Create directory: {prefix}")
         mkdir(prefix)
     docs = []
     for title, name in root_names.items():
-        logger.debug(f"Load root: {name} ({title})")
+        logger.info(f"Load root: {name} ({title})")
         doc = loader(name, pwd, level)
         if not doc.strip():
-            logger.warning(f"! '{name}' can not be found")
+            logger.warning(f"'{name}' can not be found")
             continue
         doc = '#' * level + f" {title} API\n\n" + doc
         path = join(prefix, f"{name.replace('_', '-')}-api.md")
-        logger.debug(f"Write file: {path}")
+        logger.info(f"Write file: {path}")
         if dry:
             logger.debug(doc)
         else:
