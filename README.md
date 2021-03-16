@@ -34,8 +34,8 @@ apimd Module-Name=module_name
 apimd "Module Name=module_name"
 ```
 
-The first is the readable name of the package;
-the second is the name used in import syntax.
+The first is the readable name of the package,
+and the second is the name used in import syntax.
 Please make sure you can import the package by the given name in current path.
 
 The output path can be choose by "-d" and "--dir" option, default is `docs`.
@@ -62,15 +62,18 @@ Basically, this compiler can extract docstrings from those "public" names:
 According to PEP 8, "**public**" means a name can't starts with underscore symbol "`_`",
 except magic methods. ([Naming Conventions])
 
-Objects has no docstring their owned.
+Normal objects are no docstring their owned.
 Please pack them into functions or classes such as `Enum`,
 or mention them in the docstring of root module `__init__.py`.
+The type inference for global names is not yet supported.
 
-A package should list the objects `__all__` to prevent other public style names and wildcard import syntax (`from ... import *`).
-If there has any import statements in the package root `__init__.py`, the API can be substitute into a short name, for example, change `a.b.c` to `a.c`.
+A package should list the objects `__all__` to prevent other public style names.
+In this parser, wildcard import syntax (`from ... import *`) will be ignored,
+which will cause the name from the statement will lose its parent module.
+If there has any import statements in the package root `__init__.py`, the API can be substituted into a short name, for example, change `a.b.c` to `a.c`.
 ([Global Variable Names])
 
-Object attributes should be noted in the stub files or use Variable Annotations ([PEP 526]).
+Object attributes should be noted in the stub files or use Variable Annotations. ([PEP 526])
 
 [Naming Conventions]: https://www.python.org/dev/peps/pep-0008/#naming-conventions
 [Global Variable Names]: https://www.python.org/dev/peps/pep-0008/#global-variable-names
@@ -78,11 +81,7 @@ Object attributes should be noted in the stub files or use Variable Annotations 
 
 ## Stubs
 
-If a module has a stub file, the stub file will be loaded instead of the module.
+If a module has a stub file (`.pyi`), the stub file will be loaded for annotations once again.
 Docstrings should still be written in the module first.
-
-## Inner links
-
-The docstring can refer the names in the same module or same class.
-Use `[name]`, `[class.attribute]` or `[attribute]` syntax to refer them.
-If attribute name is conflict with global names, the global name is preferred.
+For extensions (`.so`, `.pyd` or `.dylib` with Python version suffix), this tool will try to load the docstrings from module
+if `.py` file is not found.

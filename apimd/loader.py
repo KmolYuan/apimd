@@ -71,19 +71,19 @@ def loader(root: str, pwd: str, level: int) -> str:
             p.parse(name, _read(path_ext))
             if ext == ".py":
                 pure_py = True
-        if pure_py or name in p.docstring:
+        if pure_py:
             continue
-        logger.warning(f"not fully documented, loading extension module")
+        logger.debug(f"loading extension module for fully documented:")
         # Try to load module here
         for ext in EXTENSION_SUFFIXES:
             path_ext = path + ext
             if not isfile(path_ext):
                 continue
-            logger.warning(f"{name} <= {path_ext}")
+            logger.debug(f"{name} <= {path_ext}")
             if _load_module(name, path_ext, p):
                 break
         else:
-            logger.error(f"no module for {name} in this platform")
+            logger.warning(f"no module for {name} in this platform")
     return p.compile()
 
 
