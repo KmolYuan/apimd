@@ -60,9 +60,9 @@ Data structures.
 
 Escape Markdown charters from code.
 
-### esc_usc()
+### esc_underscore()
 
-*Full name:* `apimd.parser.esc_usc`
+*Full name:* `apimd.parser.esc_underscore`
 
 | doc | return |
 |:---:|:------:|
@@ -112,7 +112,7 @@ Create one column table with a title.
 
 | Decorators |
 |:----------:|
-| `@dataclass` |
+| `@dataclasses.dataclass` |
 
 | Members | Type |
 |:-------:|:----:|
@@ -211,8 +211,8 @@ Main parser of the entire module.
 
 *Full name:* `apimd.parser.Parser.resolve`
 
-| self | root | old_node | return |
-|:----:|:----:|:--------:|:------:|
+| self | root | node | return |
+|:----:|:----:|:----:|:------:|
 | `Self` | `str` | `ast.expr` | `str` |
 
 Search and resolve global names in annotation.
@@ -243,7 +243,7 @@ Set up global type alias and public names.
 
 | Bases |
 |:-----:|
-| `NodeTransformer` |
+| `ast.NodeTransformer` |
 
 Annotation resolver.
 

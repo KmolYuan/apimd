@@ -102,7 +102,7 @@ def table_split(args: Sequence[arg]) -> str:
 
 def table_literal(args: Sequence[Optional[expr]]) -> str:
     """Literals of the table."""
-    return " | ".join([f"{code(unparse(a))}" if a is not None else " "
+    return " | ".join([code(unparse(a)) if a is not None else " "
                        for a in args])
 
 
@@ -282,12 +282,11 @@ class Parser:
             self.doc[name] = level + f" class {shirt_name}\n\n"
         self.doc[name] += "*Full name:* `{}`\n\n"
         if isinstance(node, ClassDef) and node.bases:
-            self.doc[name] += list_table("Bases", (f"{unparse(d)}"
-                                                   for d in node.bases))
+            self.doc[name] += list_table("Bases", (
+                self.resolve(root, d) for d in node.bases))
         if node.decorator_list:
-            self.doc[name] += list_table("Decorators", (f"@{unparse(d)}"
-                                                        for d in
-                                                        node.decorator_list))
+            self.doc[name] += list_table("Decorators", (
+                f"@{self.resolve(root, d)}" for d in node.decorator_list))
         if isinstance(node, (FunctionDef, AsyncFunctionDef)):
             self.func_api(root, name, node.args, node.returns)
         else:
@@ -361,10 +360,10 @@ class Parser:
                 e.append("`Any`")
         return " | ".join(e)
 
-    def resolve(self, root: str, old_node: expr) -> str:
+    def resolve(self, root: str, node: expr) -> str:
         """Search and resolve global names in annotation."""
         r = Resolver(root, self.alias)
-        return unparse(r.generic_visit(r.visit(old_node)))
+        return unparse(r.generic_visit(r.visit(node)))
 
     def load_docstring(self, root: str, m: ModuleType) -> None:
         """Load docstring from the module."""
