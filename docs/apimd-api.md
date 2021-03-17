@@ -46,6 +46,16 @@ Compiler functions.
 
 Package searching algorithm.
 
+### walk_packages()
+
+*Full name:* `apimd.loader.walk_packages`
+
+| name | path | return |
+|:----:|:----:|:------:|
+| `str` | `str` | `Iterator[tuple[str, str]]` |
+
+Walk packages without import them.
+
 ## Module `apimd.parser`
 
 Data structures.

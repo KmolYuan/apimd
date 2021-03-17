@@ -9,12 +9,11 @@ __copyright__ = "Copyright (C) 2020-2021"
 __license__ = "MIT"
 __email__ = "pyslvs@gmail.com"
 
-from typing import Sequence, Optional
+from typing import Sequence, Iterator, Optional
 from sys import path as sys_path
-from os import mkdir
-from os.path import isdir, isfile, join, sep, dirname
+from os import mkdir, walk
+from os.path import isdir, isfile, abspath, join, sep, dirname
 from logging import DEBUG
-from pkgutil import walk_packages
 from importlib.abc import Loader
 from importlib.machinery import EXTENSION_SUFFIXES
 from importlib.util import find_spec, spec_from_file_location, module_from_spec
@@ -26,6 +25,7 @@ handler.setFormatter(ColoredFormatter("%(log_color)s%(message)s"))
 logger = getLogger()
 logger.setLevel(DEBUG)
 logger.addHandler(handler)
+PEP561_SUFFIX = '-stubs'
 
 
 def _read(path: str) -> str:
@@ -48,6 +48,25 @@ def _site_path(name: str) -> str:
     return dirname(s.submodule_search_locations[0])
 
 
+def walk_packages(name: str, path: str) -> Iterator[tuple[str, str]]:
+    """Walk packages without import them."""
+    path = abspath(path) + sep
+    valid = (path + name, path + name + PEP561_SUFFIX)
+    for root, _, fs in walk(path):
+        for f in fs:
+            if not f.endswith(('.py', '.pyi')):
+                continue
+            f_path = join(root, f).rsplit('.', maxsplit=1)[0]
+            if not f_path.startswith(valid):
+                continue
+            name = (f_path
+                    .removeprefix(path)
+                    .replace(PEP561_SUFFIX, "")
+                    .replace(sep, '.')
+                    .removesuffix('.__init__'))
+            yield name, f_path
+
+
 def _load_module(name: str, path: str, p: Parser) -> bool:
     """Load module directly."""
     s = spec_from_file_location(name, path)
@@ -62,14 +81,7 @@ def _load_module(name: str, path: str, p: Parser) -> bool:
 def loader(root: str, pwd: str, level: int) -> str:
     """Package searching algorithm."""
     p = Parser(level)
-    for info in walk_packages([pwd]):
-        # PEP561
-        name = info.name.replace('-stubs', "")
-        if not name.startswith(root):
-            continue
-        path = join(pwd, info.name.replace('.', sep))
-        if info.ispkg:
-            path += sep + "__init__"
+    for name, path in walk_packages(root, pwd):
         # Load its source or stub
         pure_py = False
         for ext in [".py", ".pyi"]:
