@@ -69,6 +69,8 @@ def walk_packages(name: str, path: str) -> Iterator[tuple[str, str]]:
 
 def _load_module(name: str, path: str, p: Parser) -> bool:
     """Load module directly."""
+    # Load root first to avoid import error
+    __import__(name.rsplit('.', maxsplit=1)[0])
     s = spec_from_file_location(name, path)
     if s is not None and isinstance(s.loader, Loader):
         m = module_from_spec(s)
