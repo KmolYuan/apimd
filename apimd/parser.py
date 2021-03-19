@@ -23,7 +23,6 @@ from .logger import logger
 _I = Union[Import, ImportFrom]
 _G = Union[Assign, AnnAssign]
 _API = Union[FunctionDef, AsyncFunctionDef, ClassDef]
-TA = 'typing.TypeAlias'
 
 
 def _m(*names: str) -> str:
@@ -231,28 +230,24 @@ class Parser:
         """Save import names for 'typing.*'."""
         if isinstance(node, Import):
             for a in node.names:
-                if a.asname is None:
-                    self.alias[_m(root, a.name)] = a.name
-                else:
-                    self.alias[_m(root, a.asname)] = a.name
+                name = a.name if a.asname is None else a.asname
+                self.alias[_m(root, name)] = a.name
         elif node.module is not None:
             if node.level:
                 m = parent_name(root, node.level - 1)
             else:
                 m = ''
             for a in node.names:
-                if a.asname is None:
-                    self.alias[_m(root, a.name)] = _m(m, node.module, a.name)
-                else:
-                    self.alias[_m(root, a.asname)] = _m(m, node.module, a.name)
+                name = a.name if a.asname is None else a.asname
+                self.alias[_m(root, name)] = _m(m, node.module, a.name)
 
     def type_alias(self, root: str, node: _G) -> None:
         """Set up global type alias and public names."""
         if isinstance(node, AnnAssign):
             if (
-                isinstance(node.annotation, Name)
+                isinstance(ann := node.annotation, Name)
                 and isinstance(node.target, Name)
-                and self.alias.get(_m(root, node.annotation.id), '') == TA
+                and self.alias.get(_m(root, ann.id), '') == 'typing.TypeAlias'
                 and node.value is not None
             ):
                 self.alias[_m(root, node.target.id)] = unparse(node.value)
@@ -268,7 +263,7 @@ class Parser:
                     self.imp[root].add(_m(root, e.value))
         elif (
             node.type_comment is None
-            or self.alias.get(node.type_comment) == TA
+            or self.alias.get(node.type_comment, "") == 'typing.TypeAlias'
         ):
             for sn in node.targets:
                 if isinstance(sn, Name):
