@@ -10,6 +10,8 @@ Required Python 3.9 and above. (for `ast.unparse` function)
 This parser using `ast` standard library to extract the type annotations (without inference) and docstrings, similar to MyPy.
 The target modules must be from at least Python 3.0, which is the lowest version with `ast` support.
 
+A self-compiled example is presented at <https://github.com/KmolYuan/apimd/blob/master/docs/apimd-api.md>.
+
 ## Install
 
 Install by pip:
