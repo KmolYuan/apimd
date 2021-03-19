@@ -367,7 +367,7 @@ class Parser:
         for a in args:
             if a.arg == 'self':
                 yield "`Self`"
-            elif a.arg in {'*', '**'}:
+            elif a.arg == '*':
                 yield " "
             elif a.annotation is not None:
                 yield code(self.resolve(root, a.annotation))
