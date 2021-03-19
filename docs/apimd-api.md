@@ -198,6 +198,20 @@ Compile documentation.
 
 Create function API.
 
+#### Parser.globals()
+
+*Full name:* `apimd.parser.Parser.globals`
+
+| self | root | node | return |
+|:----:|:----:|:----:|:------:|
+| `Self` | `str` | <code>ast.Assign &#124; ast.AnnAssign</code> | `None` |
+
+Set up globals:
+
++ Type alias
++ Constants
++ `__all__` filter
+
 #### Parser.imports()
 
 *Full name:* `apimd.parser.Parser.imports`
@@ -237,16 +251,6 @@ Main parser of the entire module.
 | `Self` | `str` | `ast.expr` | `str` |
 
 Search and resolve global names in annotation.
-
-#### Parser.type_alias()
-
-*Full name:* `apimd.parser.Parser.type_alias`
-
-| self | root | node | return |
-|:----:|:----:|:----:|:------:|
-| `Self` | `str` | <code>ast.Assign &#124; ast.AnnAssign</code> | `None` |
-
-Set up global type alias and public names.
 
 ### class Resolver
 

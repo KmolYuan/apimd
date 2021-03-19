@@ -215,15 +215,17 @@ class Parser:
         self.imp[root] = set()
         self.root[root] = root
         root_node = parse(script, type_comments=True)
+        for node in root_node.body:
+            # "Execute" assignments
+            if isinstance(node, (Import, ImportFrom)):
+                self.imports(root, node)
+            elif isinstance(node, (Assign, AnnAssign)):
+                self.globals(root, node)
         doc = get_docstring(root_node)
         if doc is not None:
             self.__set_doc(root, doc)
         for node in root_node.body:
-            if isinstance(node, (Import, ImportFrom)):
-                self.imports(root, node)
-            if isinstance(node, (Assign, AnnAssign)):
-                self.type_alias(root, node)
-            elif isinstance(node, (FunctionDef, AsyncFunctionDef, ClassDef)):
+            if isinstance(node, (FunctionDef, AsyncFunctionDef, ClassDef)):
                 self.api(root, node)
 
     def imports(self, root: str, node: _I) -> None:
@@ -241,33 +243,34 @@ class Parser:
                 name = a.name if a.asname is None else a.asname
                 self.alias[_m(root, name)] = _m(m, node.module, a.name)
 
-    def type_alias(self, root: str, node: _G) -> None:
-        """Set up global type alias and public names."""
+    def globals(self, root: str, node: _G) -> None:
+        """Set up globals:
+
+        + Type alias
+        + Constants
+        + `__all__` filter
+        """
         if isinstance(node, AnnAssign):
             if (
-                isinstance(ann := node.annotation, Name)
+                isinstance(node.annotation, Name)
                 and isinstance(node.target, Name)
-                and self.alias.get(_m(root, ann.id), '') == 'typing.TypeAlias'
                 and node.value is not None
             ):
                 self.alias[_m(root, node.target.id)] = unparse(node.value)
         elif (
             len(node.targets) == 1
             and isinstance(node.targets[0], Name)
-            and node.targets[0].id == '__all__'
         ):
-            if not isinstance(node.value, (Tuple, List)):
+            left = node.targets[0]
+            self.alias[_m(root, left.id)] = unparse(node.value)
+            if (
+                left.id != '__all__'
+                or not isinstance(node.value, (Tuple, List))
+            ):
                 return
             for e in node.value.elts:
                 if isinstance(e, Constant) and isinstance(e.value, str):
                     self.imp[root].add(_m(root, e.value))
-        elif (
-            node.type_comment is None
-            or self.alias.get(node.type_comment, "") == 'typing.TypeAlias'
-        ):
-            for sn in node.targets:
-                if isinstance(sn, Name):
-                    self.alias[_m(root, sn.id)] = unparse(node.value)
 
     def api(self, root: str, node: _API, *, prefix: str = '') -> None:
         """Create API doc for only functions and classes.
