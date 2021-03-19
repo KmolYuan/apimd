@@ -122,6 +122,7 @@ class Resolver(NodeTransformer):
     """Annotation resolver."""
 
     def __init__(self, root: str, alias: dict[str, str]):
+        """Set root module and alias."""
         super(Resolver, self).__init__()
         self.root = root
         self.alias = alias

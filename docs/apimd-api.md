@@ -116,6 +116,17 @@ Check the name is come from public modules or not.
 
 Create one column table with a title.
 
+### parent_name()
+
+*Full name:* `apimd.parser.parent_name`
+
+| name | level | return |
+|:----:|:-----:|:------:|
+| `str` | `int` | `str` |
+|   | `1` |   |   |
+
+Get parent name with level.
+
 ### class Parser
 
 *Full name:* `apimd.parser.Parser`
@@ -264,6 +275,8 @@ Annotation resolver.
 | self | root | alias | return |
 |:----:|:----:|:-----:|:------:|
 | `Self` | `str` | `dict[str, str]` | `Any` |
+
+Set root module and alias.
 
 #### Resolver.visit_Attribute()
 
