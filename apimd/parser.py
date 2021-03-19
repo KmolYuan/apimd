@@ -273,20 +273,17 @@ class Parser:
         """Create API doc for only functions and classes.
         Where `name` is the full name.
         """
-        level = '#' * (self.b_level + 2)
-        if prefix:
-            prefix += '.'
-            level += '#'
-        name = _m(root, prefix + node.name)
+        level = '#' * (self.b_level + (2 if not prefix else 3))
+        name = _m(root, prefix, node.name)
         self.level[name] = self.level[root]
         self.root[name] = root
-        shirt_name = esc_underscore(prefix + node.name)
+        shirt_name = esc_underscore(_m(prefix, node.name))
         if isinstance(node, FunctionDef):
-            self.doc[name] = level + f" {shirt_name}()\n\n"
+            self.doc[name] = f"{level} {shirt_name}()\n\n"
         elif isinstance(node, AsyncFunctionDef):
-            self.doc[name] = level + f" async {shirt_name}()\n\n"
+            self.doc[name] = f"{level} async {shirt_name}()\n\n"
         else:
-            self.doc[name] = level + f" class {shirt_name}\n\n"
+            self.doc[name] = f"{level} class {shirt_name}\n\n"
         self.doc[name] += "*Full name:* `{}`\n\n"
         if node.decorator_list:
             self.doc[name] += table("Decorators", items=(
