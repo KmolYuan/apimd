@@ -380,8 +380,6 @@ class Parser:
             doc = getdoc(_attr(m, attr))
             if doc is not None:
                 self.__set_doc(name, doc)
-            else:
-                logger.warning(f"Missing documentation for {name}")
 
     def __is_immediate_family(self, n1: str, n2: str) -> bool:
         """Check the name is immediate family."""
@@ -424,7 +422,14 @@ class Parser:
             else:
                 return is_public_family(s)
 
-        return "\n\n".join(
-            (self.doc[n].format(n) + self.docstring.get(n, "")).rstrip()
-            for n in sorted(self.doc, key=names_cmp) if is_public(n)
-        ) + '\n'
+        docs = []
+        for name in sorted(self.doc, key=names_cmp):
+            if not is_public(name):
+                continue
+            doc = self.doc[name].format(name)
+            if name in self.docstring:
+                doc += self.docstring[name]
+            else:
+                logger.warning(f"Missing documentation for {name}")
+            docs.append(doc.rstrip())
+        return "\n\n".join(docs) + '\n'
