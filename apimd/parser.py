@@ -18,6 +18,7 @@ from ast import (
     Call, Tuple, List, Constant, Load, Attribute, arg, expr, stmt, arguments,
     NodeTransformer,
 )
+from .logger import logger
 
 _I = Union[Import, ImportFrom]
 _G = Union[Assign, AnnAssign]
@@ -374,6 +375,8 @@ class Parser:
             doc = getdoc(_attr(m, attr))
             if doc is not None:
                 self.__set_doc(name, doc)
+            else:
+                logger.warning(f"Missing documentation for {name}")
 
     def __is_immediate_family(self, n1: str, n2: str) -> bool:
         """Check the name is immediate family."""

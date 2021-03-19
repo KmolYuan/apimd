@@ -2,8 +2,6 @@
 
 """Compiler functions."""
 
-from __future__ import annotations
-
 __author__ = "Yuan Chang"
 __copyright__ = "Copyright (C) 2020-2021"
 __license__ = "MIT"
@@ -13,18 +11,12 @@ from typing import Sequence, Iterator, Optional
 from sys import path as sys_path
 from os import mkdir, walk
 from os.path import isdir, isfile, abspath, join, sep, dirname
-from logging import DEBUG
 from importlib.abc import Loader
 from importlib.machinery import EXTENSION_SUFFIXES
 from importlib.util import find_spec, spec_from_file_location, module_from_spec
-from colorlog import getLogger, StreamHandler, ColoredFormatter
+from .logger import logger
 from .parser import Parser
 
-handler = StreamHandler()
-handler.setFormatter(ColoredFormatter("%(log_color)s%(message)s"))
-logger = getLogger()
-logger.setLevel(DEBUG)
-logger.addHandler(handler)
 PEP561_SUFFIX = '-stubs'
 
 
