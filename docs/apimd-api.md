@@ -106,16 +106,6 @@ from apimd.parser import interpret_mode
 
 Check the name is come from public modules or not.
 
-### list_table()
-
-*Full name:* `apimd.parser.list_table`
-
-| title | listed | return |
-|:-----:|:------:|:------:|
-| `str` | `Iterator[str]` | `str` |
-
-Create one column table with a title.
-
 ### parent_name()
 
 *Full name:* `apimd.parser.parent_name`
@@ -156,6 +146,16 @@ with open("pkg_path", 'r') as f:
 s = p.compile()
 ```
 
+#### Parser.annotations()
+
+*Full name:* `apimd.parser.Parser.annotations`
+
+| self | root | args | return |
+|:----:|:----:|:----:|:------:|
+| `Self` | `str` | `Sequence[ast.arg]` | `Iterator[str]` |
+
+Annotations of the table.
+
 #### Parser.api()
 
 *Full name:* `apimd.parser.Parser.api`
@@ -172,9 +172,9 @@ Where `name` is the full name.
 
 *Full name:* `apimd.parser.Parser.class_api`
 
-| self | root | name | body | return |
-|:----:|:----:|:----:|:----:|:------:|
-| `Self` | `str` | `str` | `list[ast.stmt]` | `None` |
+| self | root | name | bases | body | return |
+|:----:|:----:|:----:|:-----:|:----:|:------:|
+| `Self` | `str` | `str` | `list[ast.expr]` | `list[ast.stmt]` | `None` |
 
 Create class API.
 
@@ -237,16 +237,6 @@ Main parser of the entire module.
 | `Self` | `str` | `ast.expr` | `str` |
 
 Search and resolve global names in annotation.
-
-#### Parser.table_annotation()
-
-*Full name:* `apimd.parser.Parser.table_annotation`
-
-| self | root | args | return |
-|:----:|:----:|:----:|:------:|
-| `Self` | `str` | `Sequence[ast.arg]` | `str` |
-
-Annotations of the table.
 
 #### Parser.type_alias()
 
@@ -318,22 +308,12 @@ Replace global names with its expression recursively.
 
 Replace `Union[T1, T2, ...]` as T1 | T2 | ...
 
-### table_literal()
+### table()
 
-*Full name:* `apimd.parser.table_literal`
+*Full name:* `apimd.parser.table`
 
-| args | return |
-|:----:|:------:|
-| <code>Sequence[expr &#124; None]</code> | `str` |
+| *titles | items | return |
+|:-------:|:-----:|:------:|
+| `str` | <code>Iterable[str &#124; Iterable[str]]</code> | `str` |
 
-Literals of the table.
-
-### table_split()
-
-*Full name:* `apimd.parser.table_split`
-
-| args | return |
-|:----:|:------:|
-| `Sequence[ast.arg]` | `str` |
-
-The split line of the table.
+Create multi-column table with the titles.

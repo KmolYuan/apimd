@@ -7,7 +7,7 @@ __copyright__ = "Copyright (C) 2020-2021"
 __license__ = "MIT"
 __email__ = "pyslvs@gmail.com"
 
-from typing import cast, Sequence, Iterator, Union, Optional
+from typing import cast, Sequence, Iterable, Iterator, Union, Optional
 from types import ModuleType
 from dataclasses import dataclass, field
 from html import escape
@@ -39,6 +39,11 @@ def _attr(obj: object, attr: str) -> object:
         if n is None:
             return None
     return n
+
+
+def _defaults(args: Sequence[Optional[expr]]) -> Iterator[str]:
+    """Literals of the table."""
+    yield from (code(unparse(a)) if a is not None else " " for a in args)
 
 
 def parent_name(name: str, level: int = 1) -> str:
@@ -100,22 +105,22 @@ def interpret_mode(doc: str) -> Iterator[str]:
             keep = False
 
 
-def table_split(args: Sequence[arg]) -> str:
+def _table_cell(items: Iterable[str]) -> str:
+    """Make a row of table cell."""
+    return '|' + '|'.join(f" {t} " for t in items) + '|'
+
+
+def _table_split(args: Iterable[str]) -> str:
     """The split line of the table."""
-    return "|".join(":" + '-' * (len(a.arg) if len(a.arg) > 3 else 3) + ":"
-                    for a in args)
+    return '|' + '|'.join(":" + '-' * (len(a) if len(a) > 3 else 3) + ":"
+                          for a in args) + '|'
 
 
-def table_literal(args: Sequence[Optional[expr]]) -> str:
-    """Literals of the table."""
-    return " | ".join([code(unparse(a)) if a is not None else " "
-                       for a in args])
-
-
-def list_table(title: str, listed: Iterator[str]) -> str:
-    """Create one column table with a title."""
-    return (f"| {title} |\n|:" + '-' * len(title) + ":|\n"
-            + '\n'.join(f"| {code(e)} |" for e in listed)) + '\n\n'
+def table(*titles: str, items: Iterable[Union[str, Iterable[str]]]) -> str:
+    """Create multi-column table with the titles."""
+    return '\n'.join([_table_cell(titles), _table_split(titles),
+                      '\n'.join(_table_cell([n] if isinstance(n, str) else n)
+                                for n in items)]) + '\n\n'
 
 
 class Resolver(NodeTransformer):
@@ -288,16 +293,13 @@ class Parser:
         else:
             self.doc[name] = level + f" class {shirt_name}\n\n"
         self.doc[name] += "*Full name:* `{}`\n\n"
-        if isinstance(node, ClassDef) and node.bases:
-            self.doc[name] += list_table("Bases", (
-                self.resolve(root, d) for d in node.bases))
         if node.decorator_list:
-            self.doc[name] += list_table("Decorators", (
-                f"@{self.resolve(root, d)}" for d in node.decorator_list))
+            self.doc[name] += table("Decorators", items=(
+                code('@' + self.resolve(root, d)) for d in node.decorator_list))
         if isinstance(node, (FunctionDef, AsyncFunctionDef)):
             self.func_api(root, name, node.args, node.returns)
         else:
-            self.class_api(root, name, node.body)
+            self.class_api(root, name, node.bases, node.body)
         doc = get_docstring(node)
         if doc is not None:
             self.__set_doc(name, doc)
@@ -332,40 +334,50 @@ class Parser:
             default.append(None)
         args.append(arg('return', returns))
         default.append(None)
-        self.doc[name] += (
-            "| " + " | ".join(a.arg for a in args) + " |\n"
-            + "|" + table_split(args) + "|\n"
-            + "| " + self.table_annotation(root, args) + " |\n")
-        if not all(d is None for d in default):
-            self.doc[name] += f"| {table_literal(default)} |\n"
-        self.doc[name] += '\n'
+        ann = self.annotations(root, args)
+        has_default = all(d is None for d in default)
+        self.doc[name] += table(
+            *(a.arg for a in args),
+            items=[ann] if has_default else [ann, _defaults(default)])
 
-    def class_api(self, root: str, name: str, body: list[stmt]) -> None:
+    def class_api(self, root: str, name: str, bases: list[expr],
+                  body: list[stmt]) -> None:
         """Create class API."""
+        r_bases = [self.resolve(root, d) for d in bases]
+        if r_bases:
+            self.doc[name] += table("Bases", items=map(code, r_bases))
+        is_enum = any(map(lambda s: s.startswith('enum.'), r_bases))
         mem = {}
+        enums = []
         for e in body:
             if isinstance(e, AnnAssign) and isinstance(e.target, Name):
                 mem[e.target.id] = self.resolve(root, e.annotation)
-        if not mem:
-            return
-        self.doc[name] += (
-            "| Members | Type |\n|:" + '-' * 7 + ":|:" + '-' * 4 + ":|\n"
-            + '\n'.join(f"| `{n}` | {code(mem[n])} |" for n in sorted(mem))
-            + '\n\n')
+                if is_enum:
+                    enums.append(e.target.id)
+            elif isinstance(e, Assign):
+                if (
+                    is_enum
+                    and len(e.targets) == 1
+                    and isinstance(e.targets[0], Name)
+                ):
+                    enums.append(e.targets[0].id)
+        if enums:
+            self.doc[name] += table("Enums", items=enums)
+        if mem:
+            self.doc[name] += table('Members', 'Type', items=(
+                (code(n), code(mem[n])) for n in sorted(mem)))
 
-    def table_annotation(self, root: str, args: Sequence[arg]) -> str:
+    def annotations(self, root: str, args: Sequence[arg]) -> Iterator[str]:
         """Annotations of the table."""
-        e = []
         for a in args:
             if a.arg == 'self':
-                e.append("`Self`")
+                yield "`Self`"
             elif a.arg in {'*', '**'}:
-                e.append(" ")
+                yield " "
             elif a.annotation is not None:
-                e.append(code(self.resolve(root, a.annotation)))
+                yield code(self.resolve(root, a.annotation))
             else:
-                e.append("`Any`")
-        return " | ".join(e)
+                yield "`Any`"
 
     def resolve(self, root: str, node: expr) -> str:
         """Search and resolve global names in annotation."""
