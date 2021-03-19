@@ -41,6 +41,11 @@ def _attr(obj: object, attr: str) -> object:
     return n
 
 
+def parent_name(name: str, level: int = 1) -> str:
+    """Get parent name with level."""
+    return name.rsplit('.', maxsplit=level)[0]
+
+
 def is_public_family(name: str) -> bool:
     """Check the name is come from public modules or not."""
     for n in name.split('.'):
@@ -226,7 +231,7 @@ class Parser:
                     self.alias[_m(root, a.asname)] = a.name
         elif node.module is not None:
             if node.level:
-                m = root.rsplit('.', maxsplit=node.level - 1)[0]
+                m = parent_name(root, node.level - 1)
             else:
                 m = ''
             for a in node.names:
@@ -415,7 +420,7 @@ class Parser:
                     return False
             all_list = self.imp[self.root[s]]
             if all_list:
-                return s == self.root[s] or s in all_list
+                return s == self.root[s] or {s, parent_name(s)} & all_list
             else:
                 return is_public_family(s)
 
