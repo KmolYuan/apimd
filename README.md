@@ -63,15 +63,15 @@ Basically, this compiler can extract docstrings from those "public" names:
 According to PEP 8, "**public**" means a name can't start with underscore symbol "`_`",
 except magic methods. ([Naming Conventions])
 
-Normal objects are no docstring their owned.
-Please pack them into functions or classes such as `Enum`,
-or mention them in the docstring of root module `__init__.py`.
+Constants (upper snake case) are no docstring their owned but still listed in module section.
+Please mention them in the module docstring.
 The type inference for global names is not yet supported.
 
-A package should list the objects `__all__` to prevent other public style names.
+A module should list the objects `__all__` to prevent other public style names.
 In this parser, wildcard import syntax (`from ... import *`) will be ignored,
 which will cause the name from the statement will lose its parent module.
-If there has any import statements in the package root `__init__.py`, the API can be substituted into a short name, for example, change `a.b.c` to `a.c`.
+If there has any import statements in the package root `__init__.py`,
+the API can be substituted into a short name, for example, change `a.b.c` to `a.c`.
 ([Global Variable Names])
 
 Object attributes should be noted in the stub files or use Variable Annotations. ([PEP 526])

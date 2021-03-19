@@ -211,7 +211,7 @@ class Parser:
 
     def parse(self, root: str, script: str) -> None:
         """Main parser of the entire module."""
-        self.doc[root] = '#' * self.b_level + f"# Module `{root}`\n\n"
+        self.doc[root] = '#' * self.b_level + "# Module `{}`\n\n"
         self.level[root] = root.count('.') + 1
         self.imp[root] = set()
         self.root[root] = root
@@ -266,12 +266,14 @@ class Parser:
         ):
             left = node.targets[0]
             expression = unparse(node.value)
+            # TODO: type inference
             ann = 'Any'
         else:
             return
         name = _m(root, left.id)
         self.alias[name] = expression
         if left.id.isupper():
+            self.root[name] = root
             self.const[name] = ann
         if left.id != '__all__' or not isinstance(node.value, (Tuple, List)):
             return
@@ -414,34 +416,49 @@ class Parser:
                 name = ch.removeprefix(self.root.pop(ch))
                 self.root[nw] = nw.removesuffix(name).strip('.')
                 self.level[nw] = self.level.pop(ch) - 1
+                if ch in self.const:
+                    self.const[nw] = self.const.pop(ch)
+
+    def is_public(self, s: str) -> bool:
+        """Check the name is public style or listed in `__all__`."""
+        if s in self.imp:
+            for ch in self.doc:
+                if ch.startswith(s + '.') and is_public_family(ch):
+                    break
+            else:
+                return False
+        all_l = self.imp[self.root[s]]
+        if all_l:
+            return s == self.root[s] or bool({s, parent(s)} & all_l)
+        else:
+            return is_public_family(s)
+
+    def __get_const(self, name: str) -> str:
+        """Get constants table."""
+        const = []
+        for c in self.const:
+            if self.root[c] == name and self.is_public(c):
+                ch = c.removeprefix(name + '.')
+                const.append((code(ch), code(self.const[c])))
+        if const:
+            return table('Constants', 'Type', items=const)
+        else:
+            return ""
+
+    def __names_cmp(self, s: str) -> tuple[int, str, bool]:
+        """Name comparison function."""
+        return self.level[s], s.lower(), not s.islower()
 
     def compile(self) -> str:
         """Compile documentation."""
         self.__find_alias()
-
-        def names_cmp(s: str) -> tuple[int, str, bool]:
-            """Name comparison function."""
-            return self.level[s], s.lower(), not s.islower()
-
-        def is_public(s: str) -> bool:
-            """Check the name is listed in `__all__`."""
-            if s in self.imp:
-                for ch in self.doc:
-                    if ch.startswith(s + '.') and is_public_family(ch):
-                        break
-                else:
-                    return False
-            all_l = self.imp[self.root[s]]
-            if all_l:
-                return s == self.root[s] or bool({s, parent(s)} & all_l)
-            else:
-                return is_public_family(s)
-
         docs = []
-        for name in sorted(self.doc, key=names_cmp):
-            if not is_public(name):
+        for name in sorted(self.doc, key=self.__names_cmp):
+            if not self.is_public(name):
                 continue
             doc = self.doc[name].format(name)
+            if name in self.imp:
+                doc += self.__get_const(name)
             if name in self.docstring:
                 doc += self.docstring[name]
             else:

@@ -34,6 +34,10 @@ Main function.
 
 ## Module `apimd.loader`
 
+| Constants | Type |
+|:---------:|:----:|
+| `PEP561_SUFFIX` | `Any` |
+
 Compiler functions.
 
 ### loader()
@@ -222,6 +226,16 @@ Set up globals:
 | `Self` | `str` | <code>ast.Import &#124; ast.ImportFrom</code> | `None` |
 
 Save import names for 'typing.*'.
+
+#### Parser.is_public()
+
+*Full name:* `apimd.parser.Parser.is_public`
+
+| self | s | return |
+|:----:|:---:|:------:|
+| `Self` | `str` | `bool` |
+
+Check the name is public style or listed in `__all__`.
 
 #### Parser.load_docstring()
 
