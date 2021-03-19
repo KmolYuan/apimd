@@ -106,14 +106,14 @@ from apimd.parser import interpret_mode
 
 Check the name is come from public modules or not.
 
-### parent_name()
+### parent()
 
-*Full name:* `apimd.parser.parent_name`
+*Full name:* `apimd.parser.parent`
 
-| name | level | return |
-|:----:|:-----:|:------:|
-| `str` | `int` | `str` |
-|   | `1` |   |   |
+| name | * | level | return |
+|:----:|:---:|:-----:|:------:|
+| `str` |   | `int` | `str` |
+|   |   | `1` |   |
 
 Get parent name with level.
 

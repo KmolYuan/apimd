@@ -15,7 +15,7 @@ from importlib.abc import Loader
 from importlib.machinery import EXTENSION_SUFFIXES
 from importlib.util import find_spec, spec_from_file_location, module_from_spec
 from .logger import logger
-from .parser import parent_name, Parser
+from .parser import parent, Parser
 
 PEP561_SUFFIX = '-stubs'
 
@@ -48,7 +48,7 @@ def walk_packages(name: str, path: str) -> Iterator[tuple[str, str]]:
         for f in fs:
             if not f.endswith(('.py', '.pyi')):
                 continue
-            f_path = parent_name(join(root, f))
+            f_path = parent(join(root, f))
             if not f_path.startswith(valid):
                 continue
             name = (f_path
@@ -63,7 +63,7 @@ def _load_module(name: str, path: str, p: Parser) -> bool:
     """Load module directly."""
     # Load root first to avoid import error
     try:
-        __import__(parent_name(name))
+        __import__(parent(name))
     except ImportError:
         return False
     s = spec_from_file_location(name, path)

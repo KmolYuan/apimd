@@ -45,7 +45,7 @@ def _defaults(args: Sequence[Optional[expr]]) -> Iterator[str]:
     yield from (code(unparse(a)) if a is not None else " " for a in args)
 
 
-def parent_name(name: str, level: int = 1) -> str:
+def parent(name: str, *, level: int = 1) -> str:
     """Get parent name with level."""
     return name.rsplit('.', maxsplit=level)[0]
 
@@ -234,7 +234,7 @@ class Parser:
                 self.alias[_m(root, name)] = a.name
         elif node.module is not None:
             if node.level:
-                m = parent_name(root, node.level - 1)
+                m = parent(root, level=node.level - 1)
             else:
                 m = ''
             for a in node.names:
@@ -409,11 +409,11 @@ class Parser:
         """Compile documentation."""
         self.__find_alias()
 
-        def names_cmp(s: str):
+        def names_cmp(s: str) -> tuple[int, str, bool]:
             """Name comparison function."""
             return self.level[s], s.lower(), not s.islower()
 
-        def is_public(s: str):
+        def is_public(s: str) -> bool:
             """Check the name is listed in `__all__`."""
             if s in self.imp:
                 for ch in self.doc:
@@ -421,9 +421,9 @@ class Parser:
                         break
                 else:
                     return False
-            all_list = self.imp[self.root[s]]
-            if all_list:
-                return s == self.root[s] or {s, parent_name(s)} & all_list
+            all_l = self.imp[self.root[s]]
+            if all_l:
+                return s == self.root[s] or bool({s, parent(s)} & all_l)
             else:
                 return is_public_family(s)
 
