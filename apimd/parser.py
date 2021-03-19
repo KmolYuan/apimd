@@ -203,6 +203,7 @@ class Parser:
     imp: dict[str, set[str]] = field(default_factory=dict)
     root: dict[str, str] = field(default_factory=dict)
     alias: dict[str, str] = field(default_factory=dict)
+    const: dict[str, str] = field(default_factory=dict)
 
     def __set_doc(self, name: str, doc: str) -> None:
         """Set docstring."""
@@ -250,27 +251,33 @@ class Parser:
         + Constants
         + `__all__` filter
         """
-        if isinstance(node, AnnAssign):
-            if (
-                isinstance(node.annotation, Name)
-                and isinstance(node.target, Name)
-                and node.value is not None
-            ):
-                self.alias[_m(root, node.target.id)] = unparse(node.value)
+        if (
+            isinstance(node, AnnAssign)
+            and isinstance(node.target, Name)
+            and node.value is not None
+        ):
+            left = node.target
+            expression = unparse(node.value)
+            ann = self.resolve(root, node.annotation)
         elif (
-            len(node.targets) == 1
+            isinstance(node, Assign)
+            and len(node.targets) == 1
             and isinstance(node.targets[0], Name)
         ):
             left = node.targets[0]
-            self.alias[_m(root, left.id)] = unparse(node.value)
-            if (
-                left.id != '__all__'
-                or not isinstance(node.value, (Tuple, List))
-            ):
-                return
-            for e in node.value.elts:
-                if isinstance(e, Constant) and isinstance(e.value, str):
-                    self.imp[root].add(_m(root, e.value))
+            expression = unparse(node.value)
+            ann = 'Any'
+        else:
+            return
+        name = _m(root, left.id)
+        self.alias[name] = expression
+        if left.id.isupper():
+            self.const[name] = ann
+        if left.id != '__all__' or not isinstance(node.value, (Tuple, List)):
+            return
+        for e in node.value.elts:
+            if isinstance(e, Constant) and isinstance(e.value, str):
+                self.imp[root].add(_m(root, e.value))
 
     def api(self, root: str, node: _API, *, prefix: str = '') -> None:
         """Create API doc for only functions and classes.
@@ -311,7 +318,7 @@ class Parser:
         default: list[Optional[expr]] = []
         if node.posonlyargs:
             args.extend(node.posonlyargs)
-            args.append(arg('/'))
+            args.append(arg('/', None))
             default.extend([None] * len(node.posonlyargs))
         args.extend(node.args)
         default.extend([None] * (len(node.args) - len(node.defaults)))
@@ -319,7 +326,7 @@ class Parser:
         if node.vararg is not None:
             args.append(arg('*' + node.vararg.arg, node.vararg.annotation))
         elif node.kwonlyargs:
-            args.append(arg('*'))
+            args.append(arg('*', None))
         default.append(None)
         args.extend(node.kwonlyargs)
         default.extend([None] * (len(node.kwonlyargs) - len(node.kw_defaults)))

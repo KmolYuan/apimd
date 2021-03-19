@@ -129,6 +129,7 @@ Get parent name with level.
 |:-------:|:----:|
 | `alias` | `dict[str, str]` |
 | `b_level` | `int` |
+| `const` | `dict[str, str]` |
 | `doc` | `dict[str, str]` |
 | `docstring` | `dict[str, str]` |
 | `imp` | `dict[str, set[str]]` |
