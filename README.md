@@ -64,6 +64,9 @@ Basically, this compiler can extract docstrings and annotations from those "publ
 According to PEP 8, "**public**" means a name can't start with underscore symbol "`_`",
 except magic methods. ([Naming Conventions])
 
+The names must be defined within the scope of module and class,
+and supports the use of `if` and `try` statements.
+
 ### Constants
 
 Constants (upper snake case) are no docstring their owned but still listed in module section.

@@ -62,6 +62,10 @@ Walk packages without import them.
 
 ## Module `apimd.parser`
 
+| Constants | Type |
+|:---------:|:----:|
+| `ANY` | `str` |
+
 Data structures.
 
 ### code()
@@ -357,6 +361,16 @@ Usage:
 |:---:|:---:|
 | c | d |
 | e | f |
+
+### walk_body()
+
+*Full name:* `apimd.parser.walk_body`
+
+| body | return |
+|:----:|:------:|
+| `collections.abc.Sequence[ast.stmt]` | `collections.abc.Iterator[ast.stmt]` |
+
+Traverse around body and its simple definition scope.
 
 ## Module `apimd.pep585`
 

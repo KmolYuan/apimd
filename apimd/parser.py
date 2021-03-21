@@ -16,8 +16,8 @@ from inspect import getdoc
 from ast import (
     parse, unparse, get_docstring, AST, FunctionDef, AsyncFunctionDef, ClassDef,
     Assign, AnnAssign, Delete, Import, ImportFrom, Name, Expr, Subscript, BinOp,
-    BitOr, Call, Tuple, List, Set, Dict, Constant, Load, Attribute, arg,
-    expr, stmt, arguments, NodeTransformer,
+    BitOr, Call, If, Try, Tuple, List, Set, Dict, Constant, Load, Attribute,
+    arg, expr, stmt, arguments, NodeTransformer,
 )
 from .logger import logger
 from .pep585 import PEP585
@@ -25,6 +25,7 @@ from .pep585 import PEP585
 _I = Union[Import, ImportFrom]
 _G = Union[Assign, AnnAssign]
 _API = Union[FunctionDef, AsyncFunctionDef, ClassDef]
+ANY = 'Any'
 
 
 def _m(*names: str) -> str:
@@ -62,6 +63,22 @@ def is_public_family(name: str) -> bool:
         if n.startswith('_'):
             return False
     return True
+
+
+def walk_body(body: Sequence[stmt]) -> Iterator[stmt]:
+    """Traverse around body and its simple definition scope."""
+    for node in body:
+        if isinstance(node, If):
+            yield from walk_body(node.body)
+            yield from walk_body(node.orelse)
+        elif isinstance(node, Try):
+            yield from walk_body(node.body)
+            for h in node.handlers:
+                yield from walk_body(h.body)
+            yield from walk_body(node.orelse)
+            yield from walk_body(node.finalbody)
+        else:
+            yield node
 
 
 def code(doc: str) -> str:
@@ -172,7 +189,7 @@ def const_type(node: expr) -> str:
         if func in chain({'bool', 'int', 'float', 'complex', 'str'},
                          PEP585.keys(), PEP585.values()):
             return func
-    return 'Any'
+    return ANY
 
 
 class Resolver(NodeTransformer):
@@ -277,7 +294,7 @@ class Parser:
         self.imp[root] = set()
         self.root[root] = root
         root_node = parse(script, type_comments=True)
-        for node in root_node.body:
+        for node in walk_body(root_node.body):
             # "Execute" assignments
             if isinstance(node, (Import, ImportFrom)):
                 self.imports(root, node)
@@ -286,7 +303,7 @@ class Parser:
         doc = get_docstring(root_node)
         if doc is not None:
             self.__set_doc(root, doc)
-        for node in root_node.body:
+        for node in walk_body(root_node.body):
             if isinstance(node, (FunctionDef, AsyncFunctionDef, ClassDef)):
                 self.api(root, node)
 
@@ -337,7 +354,8 @@ class Parser:
         self.alias[name] = expression
         if left.id.isupper():
             self.root[name] = root
-            self.const[name] = ann
+            if self.const.get(name, ANY) == ANY:
+                self.const[name] = ann
         if left.id != '__all__' or not isinstance(node.value, (Tuple, List)):
             return
         for e in node.value.elts:
@@ -374,7 +392,7 @@ class Parser:
             self.__set_doc(name, doc)
         if not isinstance(node, ClassDef):
             return
-        for e in node.body:
+        for e in walk_body(node.body):
             if isinstance(e, (FunctionDef, AsyncFunctionDef, ClassDef)):
                 self.api(root, e, prefix=node.name)
 
@@ -420,7 +438,7 @@ class Parser:
         is_enum = any(map(lambda s: s.startswith('enum.'), r_bases))
         mem = {}
         enums = []
-        for node in body:
+        for node in walk_body(body):
             if isinstance(node, AnnAssign) and isinstance(node.target, Name):
                 attr = node.target.id
                 if is_public_family(attr):
@@ -471,7 +489,7 @@ class Parser:
             elif a.annotation is not None:
                 yield self.resolve(root, a.annotation, self_ty)
             else:
-                yield 'Any'
+                yield ANY
 
     def resolve(self, root: str, node: expr, self_ty: str = "") -> str:
         """Search and resolve global names in annotation."""
