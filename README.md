@@ -63,10 +63,14 @@ Basically, this compiler can extract docstrings from those "public" names:
 According to PEP 8, "**public**" means a name can't start with underscore symbol "`_`",
 except magic methods. ([Naming Conventions])
 
+### Constants
+
 Constants (upper snake case) are no docstring their owned but still listed in module section.
 Please mention them in the module docstring.
 Constant type inference applies to built-in types and containers with built-in types,
 such as `int`, `bool`, `str`, `tuple`, `dict[int, str]`, etc.
+
+### Import Inference
 
 A module should list the objects `__all__` to prevent other public style names.
 In this parser, wildcard import syntax (`from ... import *`) will be ignored,
@@ -75,11 +79,9 @@ If there has any import statements in the package root `__init__.py`,
 the API can be substituted into a short name, for example, change `a.b.c` to `a.c`.
 ([Global Variable Names])
 
-Object attributes should be noted in the stub files or use Variable Annotations. ([PEP 526])
+### Attributes
 
-[Naming Conventions]: https://www.python.org/dev/peps/pep-0008/#naming-conventions
-[Global Variable Names]: https://www.python.org/dev/peps/pep-0008/#global-variable-names
-[PEP 526]: https://www.python.org/dev/peps/pep-0526/
+Attributes should be noted in the stub files or use Variable Annotations. ([PEP 526])
 
 ## Stubs
 
@@ -87,3 +89,7 @@ If a module has a stub file (`.pyi`), the stub file will be loaded for annotatio
 Docstrings should still be written in the module first.
 For extensions (`.so`, `.pyd` or `.dylib` with Python version suffix), this tool will try to load the docstrings from module
 if `.py` file is not found.
+
+[Naming Conventions]: https://www.python.org/dev/peps/pep-0008/#naming-conventions
+[Global Variable Names]: https://www.python.org/dev/peps/pep-0008/#global-variable-names
+[PEP 526]: https://www.python.org/dev/peps/pep-0526/
