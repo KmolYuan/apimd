@@ -9,7 +9,9 @@ __email__ = "pyslvs@gmail.com"
 
 PEP585 = {
     'typing.Tuple': 'tuple',
+    'typing.List': 'list',
     'typing.Dict': 'dict',
+    'typing.Set': 'set',
     'typing.FrozenSet': 'frozenset',
     'typing.Type': 'type',
     'typing.Deque': 'collections.deque',

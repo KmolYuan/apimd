@@ -167,8 +167,12 @@ def const_type(node: expr) -> str:
         return _type_name(node).lower() + _e_type(node.elts)
     elif isinstance(node, Dict):
         return 'dict' + _e_type(node.keys, node.values)
-    else:
-        return 'Any'
+    elif isinstance(node, Call) and isinstance(node.func, (Name, Attribute)):
+        func = unparse(node.func)
+        if func in chain({'bool', 'int', 'float', 'complex', 'str'},
+                         PEP585.keys(), PEP585.values()):
+            return func
+    return 'Any'
 
 
 class Resolver(NodeTransformer):
