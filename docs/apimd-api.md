@@ -161,16 +161,6 @@ with open("pkg_path", 'r') as f:
 s = p.compile()
 ```
 
-#### Parser.annotations()
-
-*Full name:* `apimd.parser.Parser.annotations`
-
-| self | root | args | return |
-|:----:|:----:|:----:|:------:|
-| `Self` | `str` | `collections.abc.Sequence[ast.arg]` | `collections.abc.Iterator[str]` |
-
-Annotations of the table.
-
 #### Parser.api()
 
 *Full name:* `apimd.parser.Parser.api`
@@ -203,13 +193,23 @@ Create class API.
 
 Compile documentation.
 
+#### Parser.func_ann()
+
+*Full name:* `apimd.parser.Parser.func_ann`
+
+| self | root | args | * | has_self | cls_method | return |
+|:----:|:----:|:----:|:---:|:--------:|:----------:|:------:|
+| `Self` | `str` | `collections.abc.Sequence[ast.arg]` |   | `bool` | `bool` | `collections.abc.Iterator[str]` |
+
+Function annotation table.
+
 #### Parser.func_api()
 
 *Full name:* `apimd.parser.Parser.func_api`
 
-| self | root | name | node | returns | return |
-|:----:|:----:|:----:|:----:|:-------:|:------:|
-| `Self` | `str` | `str` | `ast.arguments` | <code>ast.expr &#124; None</code> | `None` |
+| self | root | name | node | returns | * | has_self | cls_method | return |
+|:----:|:----:|:----:|:----:|:-------:|:---:|:--------:|:----------:|:------:|
+| `Self` | `str` | `str` | `ast.arguments` | <code>ast.expr &#124; None</code> |   | `bool` | `bool` | `None` |
 
 Create function API.
 
@@ -235,7 +235,7 @@ Set up globals:
 |:----:|:----:|:----:|:------:|
 | `Self` | `str` | <code>ast.Import &#124; ast.ImportFrom</code> | `None` |
 
-Save import names for 'typing.*'.
+Save import names.
 
 #### Parser.is_public()
 
@@ -271,9 +271,10 @@ Main parser of the entire module.
 
 *Full name:* `apimd.parser.Parser.resolve`
 
-| self | root | node | return |
-|:----:|:----:|:----:|:------:|
-| `Self` | `str` | `ast.expr` | `str` |
+| self | root | node | self_ty | return |
+|:----:|:----:|:----:|:-------:|:------:|
+| `Self` | `str` | `ast.expr` | `str` | `str` |
+|   |   |   | `''` |   |   |
 
 Search and resolve global names in annotation.
 
@@ -291,11 +292,12 @@ Annotation resolver.
 
 *Full name:* `apimd.parser.Resolver.__init__`
 
-| self | root | alias | return |
-|:----:|:----:|:-----:|:------:|
-| `Self` | `str` | `dict[str, str]` | `Any` |
+| self | root | alias | self_ty | return |
+|:----:|:----:|:-----:|:-------:|:------:|
+| `Self` | `str` | `dict[str, str]` | `str` | `Any` |
+|   |   |   | `''` |   |   |
 
-Set root module and alias.
+Set root module, alias and generic self name.
 
 #### Resolver.visit_Attribute()
 

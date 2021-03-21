@@ -69,8 +69,10 @@ def code(doc: str) -> str:
     doc = doc.replace('|', '&#124;')
     if '&' in doc:
         return f"<code>{doc}</code>"
-    else:
+    elif doc:
         return f"`{doc}`"
+    else:
+        return " "
 
 
 def esc_underscore(doc: str) -> str:
@@ -165,11 +167,12 @@ def const_type(node: expr) -> str:
 class Resolver(NodeTransformer):
     """Annotation resolver."""
 
-    def __init__(self, root: str, alias: dict[str, str]):
-        """Set root module and alias."""
+    def __init__(self, root: str, alias: dict[str, str], self_ty: str = ""):
+        """Set root module, alias and generic self name."""
         super(Resolver, self).__init__()
         self.root = root
         self.alias = alias
+        self.self_ty = self_ty
 
     def visit_Constant(self, node: Constant) -> AST:
         """Check string is a name."""
@@ -184,6 +187,8 @@ class Resolver(NodeTransformer):
 
     def visit_Name(self, node: Name) -> AST:
         """Replace global names with its expression recursively."""
+        if node.id == self.self_ty:
+            return Name("Self", Load())
         name = _m(self.root, node.id)
         if name in self.alias and name not in self.alias[name]:
             e = cast(Expr, parse(self.alias[name]).body[0])
@@ -275,7 +280,7 @@ class Parser:
                 self.api(root, node)
 
     def imports(self, root: str, node: _I) -> None:
-        """Save import names for 'typing.*'."""
+        """Save import names."""
         if isinstance(node, Import):
             for a in node.names:
                 name = a.name if a.asname is None else a.asname
@@ -344,11 +349,13 @@ class Parser:
         else:
             self.doc[name] = f"{level} class {shirt_name}\n\n"
         self.doc[name] += "*Full name:* `{}`\n\n"
-        if node.decorator_list:
-            self.doc[name] += table("Decorators", items=(
-                code('@' + self.resolve(root, d)) for d in node.decorator_list))
+        decs = ['@' + self.resolve(root, d) for d in node.decorator_list]
+        if decs:
+            self.doc[name] += table("Decorators", items=map(code, decs))
         if isinstance(node, (FunctionDef, AsyncFunctionDef)):
-            self.func_api(root, name, node.args, node.returns)
+            self.func_api(root, name, node.args, node.returns,
+                          has_self=bool(prefix) and '@staticmethod' not in decs,
+                          cls_method='@classmethod' in decs)
         else:
             self.class_api(root, name, node.bases, node.body)
         doc = get_docstring(node)
@@ -361,7 +368,8 @@ class Parser:
                 self.api(root, e, prefix=node.name)
 
     def func_api(self, root: str, name: str, node: arguments,
-                 returns: Optional[expr]) -> None:
+                 returns: Optional[expr], *,
+                 has_self: bool, cls_method: bool) -> None:
         """Create function API."""
         args = []
         default: list[Optional[expr]] = []
@@ -385,7 +393,8 @@ class Parser:
             default.append(None)
         args.append(arg('return', returns))
         default.append(None)
-        ann = self.annotations(root, args)
+        ann = map(code, self.func_ann(root, args, has_self=has_self,
+                                      cls_method=cls_method))
         has_default = all(d is None for d in default)
         self.doc[name] += table(
             *(a.arg for a in args),
@@ -403,7 +412,8 @@ class Parser:
         for node in body:
             if isinstance(node, AnnAssign) and isinstance(node.target, Name):
                 attr = node.target.id
-                mem[attr] = self.resolve(root, node.annotation)
+                if is_public_family(attr):
+                    mem[attr] = self.resolve(root, node.annotation)
                 if is_enum:
                     enums.append(attr)
             elif (
@@ -412,10 +422,11 @@ class Parser:
                 and isinstance(node.targets[0], Name)
             ):
                 attr = node.targets[0].id
-                if node.type_comment is None:
-                    mem[attr] = const_type(node.value)
-                else:
-                    mem[attr] = node.type_comment
+                if is_public_family(attr):
+                    if node.type_comment is None:
+                        mem[attr] = const_type(node.value)
+                    else:
+                        mem[attr] = node.type_comment
                 if is_enum:
                     enums.append(attr)
             elif isinstance(node, Delete):
@@ -432,21 +443,28 @@ class Parser:
             self.doc[name] += table('Members', 'Type', items=(
                 (code(n), code(mem[n])) for n in sorted(mem)))
 
-    def annotations(self, root: str, args: Sequence[arg]) -> Iterator[str]:
-        """Annotations of the table."""
-        for a in args:
-            if a.arg == 'self':
-                yield "`Self`"
+    def func_ann(self, root: str, args: Sequence[arg], *,
+                 has_self: bool, cls_method: bool) -> Iterator[str]:
+        """Function annotation table."""
+        self_ty = ""
+        for i, a in enumerate(args):
+            if has_self and i == 0:
+                if a.annotation is not None:
+                    self_ty = self.resolve(root, a.annotation)
+                    if cls_method:
+                        self_ty = (self_ty.removeprefix('type[')
+                                   .removesuffix(']'))
+                yield 'type[Self]' if cls_method else 'Self'
             elif a.arg == '*':
-                yield " "
+                yield ""
             elif a.annotation is not None:
-                yield code(self.resolve(root, a.annotation))
+                yield self.resolve(root, a.annotation, self_ty)
             else:
-                yield "`Any`"
+                yield 'Any'
 
-    def resolve(self, root: str, node: expr) -> str:
+    def resolve(self, root: str, node: expr, self_ty: str = "") -> str:
         """Search and resolve global names in annotation."""
-        r = Resolver(root, self.alias)
+        r = Resolver(root, self.alias, self_ty)
         return unparse(r.generic_visit(r.visit(node)))
 
     def load_docstring(self, root: str, m: ModuleType) -> None:

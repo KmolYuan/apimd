@@ -86,6 +86,41 @@ If there has any import statements in the package root `__init__.py`,
 the API can be substituted into a short name, for example, change `a.b.c` to `a.c`.
 ([Global Variable Names])
 
+### Generic Self
+
+To avoid generic self-reference that is not easy to understand,
+the compiler introduce `Self` type concept from Rust language,
+which means the first argument in class should be treated as it and its subclasses.
+
+```python
+def method(self, a: int) -> None:
+    ...
+```
+
+| self | a | return |
+|:----:|:---:|:----:|
+| `Self` | `int` | `None` |
+
+If a method returns its self, in Python, it can be mark as:
+
+```python
+class A:
+    _Self = typing.TypeVar('_Self', bounds='A')
+    def method(self: _Self) -> _Self:
+        return self
+    @classmethod
+    def make_method(cls: typing.Type[_Self]) -> _Self:
+        return cls()
+```
+
+| self | return |
+|:----:|:------:|
+| `Self` | `Self` |
+
+| cls | return |
+|:----:|:------:|
+| `type[Self]` | `Self` |
+
 ### Improvement from PEPs
 
 In addition to the basic rules, your documentation will be improved for accepted PEPs,
