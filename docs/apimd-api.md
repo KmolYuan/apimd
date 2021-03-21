@@ -10,7 +10,7 @@ A Python API compiler for universal Markdown syntax.
 
 | root_names | pwd | * | prefix | level | dry | return |
 |:----------:|:---:|:---:|:------:|:-----:|:---:|:------:|
-| `dict[str, str]` | <code>str &#124; None</code> |   | `str` | `int` | `bool` | `Sequence[str]` |
+| `dict[str, str]` | <code>str &#124; None</code> |   | `str` | `int` | `bool` | `collections.abc.Sequence[str]` |
 |   | `None` |   | <code>&#x27;docs&#x27;</code> | `1` | `False` |   |
 
 Generate API. All rules are listed in the readme.
@@ -36,7 +36,7 @@ Main function.
 
 | Constants | Type |
 |:---------:|:----:|
-| `PEP561_SUFFIX` | `Any` |
+| `PEP561_SUFFIX` | `str` |
 
 Compiler functions.
 
@@ -56,7 +56,7 @@ Package searching algorithm.
 
 | name | path | return |
 |:----:|:----:|:------:|
-| `str` | `str` | `Iterator[tuple[str, str]]` |
+| `str` | `str` | `collections.abc.Iterator[tuple[str, str]]` |
 
 Walk packages without import them.
 
@@ -74,6 +74,16 @@ Data structures.
 
 Escape Markdown charters from code.
 
+### const_type()
+
+*Full name:* `apimd.parser.const_type`
+
+| node | return |
+|:----:|:------:|
+| `ast.expr` | `str` |
+
+Constant type inference.
+
 ### esc_underscore()
 
 *Full name:* `apimd.parser.esc_underscore`
@@ -90,7 +100,7 @@ Escape underscore in names.
 
 | doc | return |
 |:---:|:------:|
-| `str` | `Iterator[str]` |
+| `str` | `collections.abc.Iterator[str]` |
 
 Replace doctest as markdown Python code.
 
@@ -157,7 +167,7 @@ s = p.compile()
 
 | self | root | args | return |
 |:----:|:----:|:----:|:------:|
-| `Self` | `str` | `Sequence[ast.arg]` | `Iterator[str]` |
+| `Self` | `str` | `collections.abc.Sequence[ast.arg]` | `collections.abc.Iterator[str]` |
 
 Annotations of the table.
 
@@ -333,6 +343,14 @@ Replace `Union[T1, T2, ...]` as T1 | T2 | ...
 
 | *titles | items | return |
 |:-------:|:-----:|:------:|
-| `str` | <code>Iterable[str &#124; Iterable[str]]</code> | `str` |
+| `str` | <code>collections.abc.Iterable[str &#124; Iterable[str]]</code> | `str` |
 
 Create multi-column table with the titles.
+
+## Module `apimd.pep585`
+
+| Constants | Type |
+|:---------:|:----:|
+| `PEP585` | `dict[str, str]` |
+
+Implementation of PEP585 deprecated name alias.

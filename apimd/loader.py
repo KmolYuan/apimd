@@ -7,7 +7,8 @@ __copyright__ = "Copyright (C) 2020-2021"
 __license__ = "MIT"
 __email__ = "pyslvs@gmail.com"
 
-from typing import Sequence, Iterator, Optional
+from typing import Optional
+from collections.abc import Sequence, Iterator
 from sys import path as sys_path
 from os import mkdir, walk
 from os.path import isdir, isfile, abspath, join, sep, dirname

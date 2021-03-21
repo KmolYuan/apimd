@@ -7,18 +7,21 @@ __copyright__ = "Copyright (C) 2020-2021"
 __license__ = "MIT"
 __email__ = "pyslvs@gmail.com"
 
-from typing import cast, Sequence, Iterable, Iterator, Union, Optional
+from typing import cast, Union, Optional
 from types import ModuleType
+from collections.abc import Sequence, Iterable, Iterator
+from itertools import chain
 from dataclasses import dataclass, field
 from html import escape
 from inspect import getdoc
 from ast import (
     parse, unparse, get_docstring, AST, FunctionDef, AsyncFunctionDef, ClassDef,
     Assign, AnnAssign, Import, ImportFrom, Name, Expr, Subscript, BinOp, BitOr,
-    Call, Tuple, List, Constant, Load, Attribute, arg, expr, stmt, arguments,
-    NodeTransformer,
+    Call, Tuple, List, Set, Dict, Constant, Load, Attribute, arg, expr, stmt,
+    arguments, NodeTransformer,
 )
 from .logger import logger
+from .pep585 import PEP585
 
 _I = Union[Import, ImportFrom]
 _G = Union[Assign, AnnAssign]
@@ -122,6 +125,44 @@ def table(*titles: str, items: Iterable[Union[str, Iterable[str]]]) -> str:
                                 for n in items)]) + '\n\n'
 
 
+def _type_name(obj: object) -> str:
+    """Get type name."""
+    return type(obj).__qualname__
+
+
+def _e_type(*elements: Sequence[Optional[expr]]) -> str:
+    """Get element type if type is constants."""
+    if not elements:
+        return ""
+    ts = []
+    for element in elements:
+        if not element:
+            return ""
+        t = ""
+        for e in element:
+            if not isinstance(e, Constant):
+                return ""
+            nw_t = _type_name(e.value)
+            if t and t != nw_t:
+                t = "Any"
+                break
+            t = nw_t
+        ts.append(t)
+    return '[' + ", ".join(ts) + ']'
+
+
+def const_type(node: expr) -> str:
+    """Constant type inference."""
+    if isinstance(node, Constant):
+        return _type_name(node.value)
+    elif isinstance(node, (Tuple, List, Set)):
+        return _type_name(node).lower() + _e_type(node.elts)
+    elif isinstance(node, Dict):
+        return 'dict' + _e_type(node.keys, node.values)
+    else:
+        return 'Any'
+
+
 class Resolver(NodeTransformer):
     """Annotation resolver."""
 
@@ -172,6 +213,10 @@ class Resolver(NodeTransformer):
             return b
         elif idf == 'typing.Optional':
             return BinOp(node.slice, BitOr(), Constant(None))
+        elif idf in PEP585:
+            logger.warning(f"find deprecated name {idf}, "
+                           f"recommended to use {PEP585[idf]}")
+            return Subscript(Name(PEP585[idf], Load), node.slice, node.ctx)
         else:
             return node
 
@@ -266,8 +311,7 @@ class Parser:
         ):
             left = node.targets[0]
             expression = unparse(node.value)
-            # TODO: type inference
-            ann = 'Any'
+            ann = const_type(node.value)
         else:
             return
         name = _m(root, left.id)
@@ -422,7 +466,7 @@ class Parser:
     def is_public(self, s: str) -> bool:
         """Check the name is public style or listed in `__all__`."""
         if s in self.imp:
-            for ch in self.doc:
+            for ch in chain(self.doc.keys(), self.const.keys()):
                 if ch.startswith(s + '.') and is_public_family(ch):
                     break
             else:

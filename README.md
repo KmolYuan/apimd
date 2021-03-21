@@ -65,7 +65,8 @@ except magic methods. ([Naming Conventions])
 
 Constants (upper snake case) are no docstring their owned but still listed in module section.
 Please mention them in the module docstring.
-The type inference for global names is not yet supported.
+Constant type inference applies to built-in types and containers with built-in types,
+such as `int`, `bool`, `str`, `tuple`, `dict[int, str]`, etc.
 
 A module should list the objects `__all__` to prevent other public style names.
 In this parser, wildcard import syntax (`from ... import *`) will be ignored,
