@@ -106,8 +106,8 @@ Replace doctest as markdown Python code.
 
 Usage:
 ```python
-from apimd.parser import interpret_mode
-'\n'.join(interpret_mode(">>> a = \"Hello\""))
+>>> from apimd.parser import interpret_mode
+>>> '\n'.join(interpret_mode(">>> a = \"Hello\""))
 ```
 
 ### is\_public\_family()
@@ -154,11 +154,11 @@ AST parser.
 
 Usage:
 ```python
-from apimd.parser import Parser
-p = Parser()
-with open("pkg_path", 'r') as f:
-    p.parse('pkg_name', f.read())
-s = p.compile()
+>>> from apimd.parser import Parser
+>>> p = Parser()
+>>> with open("pkg_path", 'r') as f:
+>>>     p.parse('pkg_name', f.read())
+>>> s = p.compile()
 ```
 
 #### Parser.api()
@@ -348,6 +348,15 @@ Implementation of PEP585 and PEP604.
 | `str` | <code>collections.abc.Iterable[str &#124; Iterable[str]]</code> | `str` |
 
 Create multi-column table with the titles.
+
+Usage:
+```python
+>>> table('a', 'b', [['c', 'd'], ['e', 'f']])
+```
+| a | b |
+|:---:|:---:|
+| c | d |
+| e | f |
 
 ## Module `apimd.pep585`
 

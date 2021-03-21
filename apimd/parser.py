@@ -95,7 +95,6 @@ def interpret_mode(doc: str) -> Iterator[str]:
     for i, line in enumerate(lines):
         signed = line.startswith(">>> ")
         if signed:
-            line = line[len(">>> "):]
             if not keep:
                 yield "```python"
                 keep = True
@@ -120,7 +119,15 @@ def _table_split(args: Iterable[str]) -> str:
 
 
 def table(*titles: str, items: Iterable[Union[str, Iterable[str]]]) -> str:
-    """Create multi-column table with the titles."""
+    """Create multi-column table with the titles.
+
+    Usage:
+    >>> table('a', 'b', [['c', 'd'], ['e', 'f']])
+    | a | b |
+    |:---:|:---:|
+    | c | d |
+    | e | f |
+    """
     return '\n'.join([_table_cell(titles), _table_split(titles),
                       '\n'.join(_table_cell([n] if isinstance(n, str) else n)
                                 for n in items)]) + '\n\n'
