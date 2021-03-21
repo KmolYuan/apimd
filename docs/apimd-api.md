@@ -335,7 +335,7 @@ Replace global names with its expression recursively.
 |:----:|:----:|:------:|
 | `Self` | `ast.Subscript` | `ast.AST` |
 
-Replace `Union[T1, T2, ...]` as T1 | T2 | ...
+Implementation of PEP585 and PEP604.
 
 ### table()
 

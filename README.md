@@ -54,7 +54,8 @@ apimd module --dry
 
 ## Rules
 
-Basically, this compiler can extract docstrings from those "public" names:
+Basically, this compiler can extract docstrings and annotations from those "public" names:
+(PEP [484], [526])
 
 + Modules
 + Functions & Generators (support async version)
@@ -67,8 +68,14 @@ except magic methods. ([Naming Conventions])
 
 Constants (upper snake case) are no docstring their owned but still listed in module section.
 Please mention them in the module docstring.
+
+### Constant Type Inference
+
 Constant type inference applies to built-in types and containers with built-in types,
-such as `int`, `bool`, `str`, `tuple`, `dict[int, str]`, etc.
+such as `None`, `int`, `bool`, `str`, `tuple`, `dict[int, str]`, etc.
+You can also annotate them manually.
+
+This function also works in class attributes, but doesn't support unpacking.
 
 ### Import Inference
 
@@ -79,9 +86,16 @@ If there has any import statements in the package root `__init__.py`,
 the API can be substituted into a short name, for example, change `a.b.c` to `a.c`.
 ([Global Variable Names])
 
-### Attributes
+### Improvement from PEPs
 
-Attributes should be noted in the stub files or use Variable Annotations. ([PEP 526])
+In addition to the basic rules, your documentation will be improved for accepted PEPs,
+even it is only implemented in the future version.
+(your code still will not be modified)
+
+| No. | Description |
+|:---:|:------------|
+| [585] | Type Hinting Generics In Standard Collections |
+| [604] | Allow writing union types as X &#124; Y |
 
 ## Stubs
 
@@ -92,4 +106,7 @@ if `.py` file is not found.
 
 [Naming Conventions]: https://www.python.org/dev/peps/pep-0008/#naming-conventions
 [Global Variable Names]: https://www.python.org/dev/peps/pep-0008/#global-variable-names
-[PEP 526]: https://www.python.org/dev/peps/pep-0526/
+[484]: https://www.python.org/dev/peps/pep-0484/
+[526]: https://www.python.org/dev/peps/pep-0526/
+[585]: https://www.python.org/dev/peps/pep-0585/
+[604]: https://www.python.org/dev/peps/pep-0585/

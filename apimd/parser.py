@@ -15,9 +15,9 @@ from dataclasses import dataclass, field
 from inspect import getdoc
 from ast import (
     parse, unparse, get_docstring, AST, FunctionDef, AsyncFunctionDef, ClassDef,
-    Assign, AnnAssign, Import, ImportFrom, Name, Expr, Subscript, BinOp, BitOr,
-    Call, Tuple, List, Set, Dict, Constant, Load, Attribute, arg, expr, stmt,
-    arguments, NodeTransformer,
+    Assign, AnnAssign, Delete, Import, ImportFrom, Name, Expr, Subscript, BinOp,
+    BitOr, Call, Tuple, List, Set, Dict, Constant, Load, Attribute, arg,
+    expr, stmt, arguments, NodeTransformer,
 )
 from .logger import logger
 from .pep585 import PEP585
@@ -198,7 +198,7 @@ class Resolver(NodeTransformer):
             return node
 
     def visit_Subscript(self, node: Subscript) -> AST:
-        """Replace `Union[T1, T2, ...]` as T1 | T2 | ..."""
+        """Implementation of PEP585 and PEP604."""
         if not isinstance(node.value, Name):
             return node
         name = node.value.id
@@ -213,7 +213,8 @@ class Resolver(NodeTransformer):
         elif idf == 'typing.Optional':
             return BinOp(node.slice, BitOr(), Constant(None))
         elif idf in PEP585:
-            logger.warning(f"find deprecated name {idf}, "
+            logger.warning(f"{node.lineno}:{node.col_offset}: "
+                           f"find deprecated name {idf}, "
                            f"recommended to use {PEP585[idf]}")
             return Subscript(Name(PEP585[idf], Load), node.slice, node.ctx)
         else:
@@ -310,7 +311,10 @@ class Parser:
         ):
             left = node.targets[0]
             expression = unparse(node.value)
-            ann = const_type(node.value)
+            if node.type_comment is None:
+                ann = const_type(node.value)
+            else:
+                ann = node.type_comment
         else:
             return
         name = _m(root, left.id)
@@ -396,18 +400,32 @@ class Parser:
         is_enum = any(map(lambda s: s.startswith('enum.'), r_bases))
         mem = {}
         enums = []
-        for e in body:
-            if isinstance(e, AnnAssign) and isinstance(e.target, Name):
-                mem[e.target.id] = self.resolve(root, e.annotation)
+        for node in body:
+            if isinstance(node, AnnAssign) and isinstance(node.target, Name):
+                attr = node.target.id
+                mem[attr] = self.resolve(root, node.annotation)
                 if is_enum:
-                    enums.append(e.target.id)
-            elif isinstance(e, Assign):
-                if (
-                    is_enum
-                    and len(e.targets) == 1
-                    and isinstance(e.targets[0], Name)
-                ):
-                    enums.append(e.targets[0].id)
+                    enums.append(attr)
+            elif (
+                isinstance(node, Assign)
+                and len(node.targets) == 1
+                and isinstance(node.targets[0], Name)
+            ):
+                attr = node.targets[0].id
+                if node.type_comment is None:
+                    mem[attr] = const_type(node.value)
+                else:
+                    mem[attr] = node.type_comment
+                if is_enum:
+                    enums.append(attr)
+            elif isinstance(node, Delete):
+                for d in node.targets:
+                    if not isinstance(d, Name):
+                        continue
+                    attr = d.id
+                    mem.pop(attr, None)
+                    if attr in enums:
+                        enums.remove(attr)
         if enums:
             self.doc[name] += table("Enums", items=enums)
         if mem:
