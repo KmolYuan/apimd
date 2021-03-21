@@ -12,7 +12,6 @@ from types import ModuleType
 from collections.abc import Sequence, Iterable, Iterator
 from itertools import chain
 from dataclasses import dataclass, field
-from html import escape
 from inspect import getdoc
 from ast import (
     parse, unparse, get_docstring, AST, FunctionDef, AsyncFunctionDef, ClassDef,
@@ -67,7 +66,7 @@ def is_public_family(name: str) -> bool:
 
 def code(doc: str) -> str:
     """Escape Markdown charters from code."""
-    doc = escape(doc).replace('|', '&#124;')
+    doc = doc.replace('|', '&#124;')
     if '&' in doc:
         return f"<code>{doc}</code>"
     else:

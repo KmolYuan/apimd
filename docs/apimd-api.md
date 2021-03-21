@@ -11,7 +11,7 @@ A Python API compiler for universal Markdown syntax.
 | root_names | pwd | * | prefix | level | dry | return |
 |:----------:|:---:|:---:|:------:|:-----:|:---:|:------:|
 | `dict[str, str]` | <code>str &#124; None</code> |   | `str` | `int` | `bool` | `collections.abc.Sequence[str]` |
-|   | `None` |   | <code>&#x27;docs&#x27;</code> | `1` | `False` |   |
+|   | `None` |   | `'docs'` | `1` | `False` |   |
 
 Generate API. All rules are listed in the readme.
 
@@ -178,7 +178,7 @@ Annotations of the table.
 | self | root | node | * | prefix | return |
 |:----:|:----:|:----:|:---:|:------:|:------:|
 | `Self` | `str` | <code>ast.FunctionDef &#124; ast.AsyncFunctionDef &#124; ast.ClassDef</code> |   | `str` | `None` |
-|   |   |   |   | <code>&#x27;&#x27;</code> |   |
+|   |   |   |   | `''` |   |
 
 Create API doc for only functions and classes.
 Where `name` is the full name.
