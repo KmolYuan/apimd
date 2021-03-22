@@ -9,5 +9,3 @@ __email__ = "pyslvs@gmail.com"
 __version__ = "2.1.0.dev0"
 
 from .loader import gen_api
-
-__all__ = ['__version__', 'gen_api']
