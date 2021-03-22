@@ -78,7 +78,7 @@ def _load_module(name: str, path: str, p: Parser) -> bool:
 
 def loader(root: str, pwd: str, link: bool, level: int) -> str:
     """Package searching algorithm."""
-    p = Parser(link, level)
+    p = Parser.new(link, level)
     for name, path in walk_packages(root, pwd):
         # Load its source or stub
         pure_py = False

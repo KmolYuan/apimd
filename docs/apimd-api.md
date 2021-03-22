@@ -179,6 +179,11 @@ Usage:
 >>> s = p.compile()
 ```
 
+Or create with parameters:
+```python
+>>> p = Parser.new(link=True, level=1)
+```
+
 #### Parser.api()
 
 *Full name:* `apimd.parser.Parser.api`
@@ -283,6 +288,21 @@ Check the name is public style or listed in `__all__`.
 | `Self` | `str` | `types.ModuleType` | `None` |
 
 Load docstring from the module.
+
+#### Parser.new()
+
+*Full name:* `apimd.parser.Parser.new`
+<a id="apimd-parser-parser-new"></a>
+
+| Decorators |
+|:----------:|
+| `@classmethod` |
+
+| cls | link | level | return |
+|:---:|:----:|:-----:|:------:|
+| `type[Self]` | `bool` | `int` | `Self` |
+
+Create a parser by options.
 
 #### Parser.parse()
 

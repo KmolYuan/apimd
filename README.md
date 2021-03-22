@@ -124,6 +124,8 @@ class A:
 |:----:|:------:|
 | `type[Self]` | `Self` |
 
+The example shown at [self-compiled documentation](./docs/apimd-api.md#apimd-parser-parser-new).
+
 ### Improvement from PEPs
 
 In addition to the basic rules, your documentation will be improved for accepted PEPs,

@@ -7,7 +7,7 @@ __copyright__ = "Copyright (C) 2020-2021"
 __license__ = "MIT"
 __email__ = "pyslvs@gmail.com"
 
-from typing import cast, Union, Optional
+from typing import cast, TypeVar, Union, Optional
 from types import ModuleType
 from collections.abc import Sequence, Iterable, Iterator
 from itertools import chain
@@ -271,6 +271,9 @@ class Parser:
     >>> with open("pkg_path", 'r') as f:
     >>>     p.parse('pkg_name', f.read())
     >>> s = p.compile()
+
+    Or create with parameters:
+    >>> p = Parser.new(link=True, level=1)
     """
     link: bool = True
     b_level: int = 1
@@ -281,6 +284,12 @@ class Parser:
     root: dict[str, str] = field(default_factory=dict)
     alias: dict[str, str] = field(default_factory=dict)
     const: dict[str, str] = field(default_factory=dict)
+    _Self = TypeVar('_Self', bound='Parser')
+
+    @classmethod
+    def new(cls: type[_Self], link: bool, level: int) -> _Self:
+        """Create a parser by options."""
+        return cls(link, level)
 
     def __set_doc(self, name: str, doc: str) -> None:
         """Set docstring."""
