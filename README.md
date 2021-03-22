@@ -61,8 +61,9 @@ Basically, this compiler can extract docstrings and annotations from those "publ
 + Functions & Generators (support async version)
 + Classes and its methods
 
-According to PEP 8, "**public**" means a name can't start with underscore symbol `_`,
-except magic methods. ([Naming Conventions])
+According to PEP 8, "**public**" means a name can't start with underscore symbol `_`, except magic methods.
+If the public name (other than the magic name) has no docstring, the compiler will issue a warning.
+([Naming Conventions])
 
 The names must be defined within the scope of module and class,
 and supports the use of `if` and `try` statements.
@@ -146,6 +147,11 @@ and replace the periods `.` by hyphens `-`.
 For example, `aaa.AAA.bbb_Ccc` will become `aaa-aaa-bbb_ccc`.
 
 Use `--no-link` to prevent this function.
+
+### Generating Table of Contents
+
+Add `--toc` option to generate the table of contents at the top of the document.
+This option will force activate section link option.
 
 ## Stubs
 

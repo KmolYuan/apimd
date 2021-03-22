@@ -37,6 +37,7 @@ def main() -> None:
     parser.add_argument('--level', metavar="LEVEL", default=1, nargs='?',
                         type=int, help="the starting level of the sections")
     for cmd, h in [
+        ('--toc', "generate table of contents"),
         ('--no-link', "don't use link anchor"),
         ('--dry', "show the result instead write the file"),
     ]:
@@ -52,7 +53,7 @@ def main() -> None:
         root_names[n[0]] = n[1]
     from apimd.loader import gen_api
     gen_api(root_names, arg.current, prefix=arg.dir, link=not arg.no_link,
-            level=arg.level, dry=arg.dry)
+            level=arg.level, toc=arg.toc, dry=arg.dry)
 
 
 if __name__ == '__main__':

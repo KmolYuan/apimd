@@ -53,11 +53,17 @@ def parent(name: str, *, level: int = 1) -> str:
     return name.rsplit('.', maxsplit=level)[0]
 
 
+def is_magic(name: str) -> bool:
+    """Is magic name."""
+    name = name.rsplit('.', maxsplit=1)[-1]
+    return name[:2] == name[-2:] == '__'
+
+
 def is_public_family(name: str) -> bool:
     """Check the name is come from public modules or not."""
     for n in name.split('.'):
         # Magic name
-        if n[:2] == n[-2:] == '__':
+        if is_magic(n):
             continue
         # Local or private name
         if n.startswith('_'):
@@ -82,7 +88,7 @@ def walk_body(body: Sequence[stmt]) -> Iterator[stmt]:
 
 
 def code(doc: str) -> str:
-    """Escape Markdown charters from code."""
+    """Escape Markdown charters from inline code."""
     doc = doc.replace('|', '&#124;')
     if '&' in doc:
         return f"<code>{doc}</code>"
@@ -100,27 +106,25 @@ def esc_underscore(doc: str) -> str:
         return doc
 
 
-def interpret_mode(doc: str) -> Iterator[str]:
-    r"""Replace doctest as markdown Python code.
-
-    Usage:
-    >>> '\n'.join(interpret_mode(">>> a = \"Hello\""))
-    """
+def doctest(doc: str) -> str:
+    """Wrap doctest as markdown Python code."""
     keep = False
-    lines = doc.split('\n')
+    docs = []
+    lines = doc.splitlines()
     for i, line in enumerate(lines):
         signed = line.startswith(">>> ")
         if signed:
             if not keep:
-                yield "```python"
+                docs.append("```python")
                 keep = True
         elif keep:
-            yield "```"
+            docs.append("```")
             keep = False
-        yield line
+        docs.append(line)
         if signed and i == len(lines) - 1:
-            yield "```"
+            docs.append("```")
             keep = False
+    return '\n'.join(docs)
 
 
 def _table_cell(items: Iterable[str]) -> str:
@@ -277,6 +281,7 @@ class Parser:
     """
     link: bool = True
     b_level: int = 1
+    toc: bool = False
     level: dict[str, int] = field(default_factory=dict)
     doc: dict[str, str] = field(default_factory=dict)
     docstring: dict[str, str] = field(default_factory=dict)
@@ -287,13 +292,13 @@ class Parser:
     _Self = TypeVar('_Self', bound='Parser')
 
     @classmethod
-    def new(cls: type[_Self], link: bool, level: int) -> _Self:
+    def new(cls: type[_Self], link: bool, level: int, toc: bool) -> _Self:
         """Create a parser by options."""
-        return cls(link, level)
+        return cls(link, level, toc)
 
-    def __set_doc(self, name: str, doc: str) -> None:
-        """Set docstring."""
-        self.docstring[name] = '\n'.join(interpret_mode(doc))
+    def __post_init__(self):
+        if self.toc:
+            self.link = True
 
     def parse(self, root: str, script: str) -> None:
         """Main parser of the entire module."""
@@ -301,7 +306,7 @@ class Parser:
         if self.link:
             self.doc[root] += "\n<a id=\"{}\"></a>"
         self.doc[root] += '\n\n'
-        self.level[root] = root.count('.') + 1
+        self.level[root] = root.count('.')
         self.imp[root] = set()
         self.root[root] = root
         root_node = parse(script, type_comments=True)
@@ -313,7 +318,7 @@ class Parser:
                 self.globals(root, node)
         doc = get_docstring(root_node)
         if doc is not None:
-            self.__set_doc(root, doc)
+            self.docstring[root] = doctest(doc)
         for node in walk_body(root_node.body):
             if isinstance(node, (FunctionDef, AsyncFunctionDef, ClassDef)):
                 self.api(root, node)
@@ -403,7 +408,7 @@ class Parser:
             self.class_api(root, name, node.bases, node.body)
         doc = get_docstring(node)
         if doc is not None:
-            self.__set_doc(name, doc)
+            self.docstring[name] = doctest(doc)
         if not isinstance(node, ClassDef):
             return
         for e in walk_body(node.body):
@@ -518,7 +523,7 @@ class Parser:
             attr = name.removeprefix(root + '.')
             doc = getdoc(_attr(m, attr))
             if doc is not None:
-                self.__set_doc(name, doc)
+                self.docstring[name] = doctest(doc)
 
     def __is_immediate_family(self, n1: str, n2: str) -> bool:
         """Check the name is immediate family."""
@@ -536,8 +541,9 @@ class Parser:
                 self.doc[nw] = self.doc.pop(ch)
                 self.docstring[nw] = self.docstring.pop(ch, "")
                 name = ch.removeprefix(self.root.pop(ch))
-                self.root[nw] = nw.removesuffix(name).strip('.')
-                self.level[nw] = self.level.pop(ch) - 1
+                self.root[nw] = nw.removesuffix(name)
+                self.level.pop(ch)
+                self.level[nw] = self.root[nw].count('.')
                 if ch in self.const:
                     self.const[nw] = self.const.pop(ch)
 
@@ -574,16 +580,24 @@ class Parser:
     def compile(self) -> str:
         """Compile documentation."""
         self.__find_alias()
+        toc = ['**Table of contents:**']
         docs = []
         for name in sorted(self.doc, key=self.__names_cmp):
             if not self.is_public(name):
                 continue
-            doc = self.doc[name].format(name, name.lower().replace('.', '-'))
+            link = name.lower().replace('.', '-')
+            doc = self.doc[name].format(name, link)
             if name in self.imp:
                 doc += self.__get_const(name)
             if name in self.docstring:
                 doc += self.docstring[name]
+            elif is_magic(name):
+                continue
             else:
                 logger.warning(f"Missing documentation for {name}")
+            level = name.removeprefix(self.root[name]).count('.')
+            toc.append(" " * 4 * level + f"+ [{code(name)}](#{link})")
             docs.append(doc.rstrip())
+        if self.toc:
+            return '\n'.join(toc) + '\n\n' + "\n\n".join(docs) + '\n'
         return "\n\n".join(docs) + '\n'

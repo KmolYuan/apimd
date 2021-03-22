@@ -1,5 +1,44 @@
 # apimd API
 
+**Table of contents:**
++ [`apimd`](#apimd)
+    + [`apimd.gen_api`](#apimd-gen_api)
++ [`apimd.__main__`](#apimd-__main__)
+    + [`apimd.__main__.main`](#apimd-__main__-main)
++ [`apimd.loader`](#apimd-loader)
+    + [`apimd.loader.loader`](#apimd-loader-loader)
+    + [`apimd.loader.walk_packages`](#apimd-loader-walk_packages)
++ [`apimd.parser`](#apimd-parser)
+    + [`apimd.parser.code`](#apimd-parser-code)
+    + [`apimd.parser.const_type`](#apimd-parser-const_type)
+    + [`apimd.parser.doctest`](#apimd-parser-doctest)
+    + [`apimd.parser.esc_underscore`](#apimd-parser-esc_underscore)
+    + [`apimd.parser.is_magic`](#apimd-parser-is_magic)
+    + [`apimd.parser.is_public_family`](#apimd-parser-is_public_family)
+    + [`apimd.parser.parent`](#apimd-parser-parent)
+    + [`apimd.parser.Parser`](#apimd-parser-parser)
+        + [`apimd.parser.Parser.api`](#apimd-parser-parser-api)
+        + [`apimd.parser.Parser.class_api`](#apimd-parser-parser-class_api)
+        + [`apimd.parser.Parser.compile`](#apimd-parser-parser-compile)
+        + [`apimd.parser.Parser.func_ann`](#apimd-parser-parser-func_ann)
+        + [`apimd.parser.Parser.func_api`](#apimd-parser-parser-func_api)
+        + [`apimd.parser.Parser.globals`](#apimd-parser-parser-globals)
+        + [`apimd.parser.Parser.imports`](#apimd-parser-parser-imports)
+        + [`apimd.parser.Parser.is_public`](#apimd-parser-parser-is_public)
+        + [`apimd.parser.Parser.load_docstring`](#apimd-parser-parser-load_docstring)
+        + [`apimd.parser.Parser.new`](#apimd-parser-parser-new)
+        + [`apimd.parser.Parser.parse`](#apimd-parser-parser-parse)
+        + [`apimd.parser.Parser.resolve`](#apimd-parser-parser-resolve)
+    + [`apimd.parser.Resolver`](#apimd-parser-resolver)
+        + [`apimd.parser.Resolver.__init__`](#apimd-parser-resolver-__init__)
+        + [`apimd.parser.Resolver.visit_Attribute`](#apimd-parser-resolver-visit_attribute)
+        + [`apimd.parser.Resolver.visit_Constant`](#apimd-parser-resolver-visit_constant)
+        + [`apimd.parser.Resolver.visit_Name`](#apimd-parser-resolver-visit_name)
+        + [`apimd.parser.Resolver.visit_Subscript`](#apimd-parser-resolver-visit_subscript)
+    + [`apimd.parser.table`](#apimd-parser-table)
+    + [`apimd.parser.walk_body`](#apimd-parser-walk_body)
++ [`apimd.pep585`](#apimd-pep585)
+
 ## Module `apimd`
 <a id="apimd"></a>
 
@@ -10,10 +49,10 @@ A Python API compiler for universal Markdown syntax.
 *Full name:* `apimd.gen_api`
 <a id="apimd-gen_api"></a>
 
-| root_names | pwd | * | prefix | link | level | dry | return |
-|:----------:|:---:|:---:|:------:|:----:|:-----:|:---:|:------:|
-| `dict[str, str]` | <code>str &#124; None</code> |   | `str` | `bool` | `int` | `bool` | `collections.abc.Sequence[str]` |
-|   | `None` |   | `'docs'` | `True` | `1` | `False` |   |
+| root_names | pwd | * | prefix | link | level | toc | dry | return |
+|:----------:|:---:|:---:|:------:|:----:|:-----:|:---:|:---:|:------:|
+| `dict[str, str]` | <code>str &#124; None</code> |   | `str` | `bool` | `int` | `bool` | `bool` | `collections.abc.Sequence[str]` |
+|   | `None` |   | `'docs'` | `True` | `1` | `False` | `False` |   |
 
 Generate API. All rules are listed in the readme.
 
@@ -50,9 +89,9 @@ Compiler functions.
 *Full name:* `apimd.loader.loader`
 <a id="apimd-loader-loader"></a>
 
-| root | pwd | link | level | return |
-|:----:|:---:|:----:|:-----:|:------:|
-| `str` | `str` | `bool` | `int` | `str` |
+| root | pwd | link | level | toc | return |
+|:----:|:---:|:----:|:-----:|:---:|:------:|
+| `str` | `str` | `bool` | `int` | `bool` | `str` |
 
 Package searching algorithm.
 
@@ -85,7 +124,7 @@ Data structures.
 |:---:|:------:|
 | `str` | `str` |
 
-Escape Markdown charters from code.
+Escape Markdown charters from inline code.
 
 ### const_type()
 
@@ -98,6 +137,17 @@ Escape Markdown charters from code.
 
 Constant type inference.
 
+### doctest()
+
+*Full name:* `apimd.parser.doctest`
+<a id="apimd-parser-doctest"></a>
+
+| doc | return |
+|:---:|:------:|
+| `str` | `str` |
+
+Wrap doctest as markdown Python code.
+
 ### esc_underscore()
 
 *Full name:* `apimd.parser.esc_underscore`
@@ -109,21 +159,16 @@ Constant type inference.
 
 Escape underscore in names.
 
-### interpret_mode()
+### is_magic()
 
-*Full name:* `apimd.parser.interpret_mode`
-<a id="apimd-parser-interpret_mode"></a>
+*Full name:* `apimd.parser.is_magic`
+<a id="apimd-parser-is_magic"></a>
 
-| doc | return |
-|:---:|:------:|
-| `str` | `collections.abc.Iterator[str]` |
+| name | return |
+|:----:|:------:|
+| `str` | `bool` |
 
-Replace doctest as markdown Python code.
-
-Usage:
-```python
->>> '\n'.join(interpret_mode(">>> a = \"Hello\""))
-```
+Is magic name.
 
 ### is\_public\_family()
 
@@ -168,6 +213,7 @@ Get parent name with level.
 | `level` | `dict[str, int]` |
 | `link` | `bool` |
 | `root` | `dict[str, str]` |
+| `toc` | `bool` |
 
 AST parser.
 
@@ -298,9 +344,9 @@ Load docstring from the module.
 |:----------:|
 | `@classmethod` |
 
-| cls | link | level | return |
-|:---:|:----:|:-----:|:------:|
-| `type[Self]` | `bool` | `int` | `Self` |
+| cls | link | level | toc | return |
+|:---:|:----:|:-----:|:---:|:------:|
+| `type[Self]` | `bool` | `int` | `bool` | `Self` |
 
 Create a parser by options.
 
