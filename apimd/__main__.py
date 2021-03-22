@@ -36,11 +36,11 @@ def main() -> None:
                             type=str, help=h)
     parser.add_argument('--level', metavar="LEVEL", default=1, nargs='?',
                         type=int, help="the starting level of the sections")
-    parser.add_argument(
-        '--dry',
-        action='store_true',
-        help="show the result instead write the file"
-    )
+    for cmd, h in [
+        ('--no-link', "don't use link anchor"),
+        ('--dry', "show the result instead write the file"),
+    ]:
+        parser.add_argument(cmd, action='store_true', help=h)
     arg = parser.parse_args()
     root_names = {}
     for m in arg.module:  # type: str
@@ -51,8 +51,8 @@ def main() -> None:
             n[1] = n[0]
         root_names[n[0]] = n[1]
     from apimd.loader import gen_api
-    gen_api(root_names, arg.current, prefix=arg.dir, level=arg.level,
-            dry=arg.dry)
+    gen_api(root_names, arg.current, prefix=arg.dir, link=not arg.no_link,
+            level=arg.level, dry=arg.dry)
 
 
 if __name__ == '__main__':

@@ -1,17 +1,19 @@
 # apimd API
 
 ## Module `apimd`
+<a id="apimd"></a>
 
 A Python API compiler for universal Markdown syntax.
 
 ### gen_api()
 
 *Full name:* `apimd.gen_api`
+<a id="apimd-gen_api"></a>
 
-| root_names | pwd | * | prefix | level | dry | return |
-|:----------:|:---:|:---:|:------:|:-----:|:---:|:------:|
-| `dict[str, str]` | <code>str &#124; None</code> |   | `str` | `int` | `bool` | `collections.abc.Sequence[str]` |
-|   | `None` |   | `'docs'` | `1` | `False` |   |
+| root_names | pwd | * | prefix | link | level | dry | return |
+|:----------:|:---:|:---:|:------:|:----:|:-----:|:---:|:------:|
+| `dict[str, str]` | <code>str &#124; None</code> |   | `str` | `bool` | `int` | `bool` | `collections.abc.Sequence[str]` |
+|   | `None` |   | `'docs'` | `True` | `1` | `False` |   |
 
 Generate API. All rules are listed in the readme.
 
@@ -19,12 +21,14 @@ The path `pwd` is the current path that provided to `pkgutil`,
 which allows the "site-packages" directory to be used.
 
 ## Module `apimd.__main__`
+<a id="apimd-__main__"></a>
 
 The command line launcher of apimd.
 
 ### main()
 
 *Full name:* `apimd.__main__.main`
+<a id="apimd-__main__-main"></a>
 
 | return |
 |:------:|
@@ -33,6 +37,7 @@ The command line launcher of apimd.
 Main function.
 
 ## Module `apimd.loader`
+<a id="apimd-loader"></a>
 
 | Constants | Type |
 |:---------:|:----:|
@@ -43,16 +48,18 @@ Compiler functions.
 ### loader()
 
 *Full name:* `apimd.loader.loader`
+<a id="apimd-loader-loader"></a>
 
-| root | pwd | level | return |
-|:----:|:---:|:-----:|:------:|
-| `str` | `str` | `int` | `str` |
+| root | pwd | link | level | return |
+|:----:|:---:|:----:|:-----:|:------:|
+| `str` | `str` | `bool` | `int` | `str` |
 
 Package searching algorithm.
 
 ### walk_packages()
 
 *Full name:* `apimd.loader.walk_packages`
+<a id="apimd-loader-walk_packages"></a>
 
 | name | path | return |
 |:----:|:----:|:------:|
@@ -61,6 +68,7 @@ Package searching algorithm.
 Walk packages without import them.
 
 ## Module `apimd.parser`
+<a id="apimd-parser"></a>
 
 | Constants | Type |
 |:---------:|:----:|
@@ -71,6 +79,7 @@ Data structures.
 ### code()
 
 *Full name:* `apimd.parser.code`
+<a id="apimd-parser-code"></a>
 
 | doc | return |
 |:---:|:------:|
@@ -81,6 +90,7 @@ Escape Markdown charters from code.
 ### const_type()
 
 *Full name:* `apimd.parser.const_type`
+<a id="apimd-parser-const_type"></a>
 
 | node | return |
 |:----:|:------:|
@@ -91,6 +101,7 @@ Constant type inference.
 ### esc_underscore()
 
 *Full name:* `apimd.parser.esc_underscore`
+<a id="apimd-parser-esc_underscore"></a>
 
 | doc | return |
 |:---:|:------:|
@@ -101,6 +112,7 @@ Escape underscore in names.
 ### interpret_mode()
 
 *Full name:* `apimd.parser.interpret_mode`
+<a id="apimd-parser-interpret_mode"></a>
 
 | doc | return |
 |:---:|:------:|
@@ -110,13 +122,13 @@ Replace doctest as markdown Python code.
 
 Usage:
 ```python
->>> from apimd.parser import interpret_mode
 >>> '\n'.join(interpret_mode(">>> a = \"Hello\""))
 ```
 
 ### is\_public\_family()
 
 *Full name:* `apimd.parser.is_public_family`
+<a id="apimd-parser-is_public_family"></a>
 
 | name | return |
 |:----:|:------:|
@@ -127,6 +139,7 @@ Check the name is come from public modules or not.
 ### parent()
 
 *Full name:* `apimd.parser.parent`
+<a id="apimd-parser-parent"></a>
 
 | name | * | level | return |
 |:----:|:---:|:-----:|:------:|
@@ -138,6 +151,7 @@ Get parent name with level.
 ### class Parser
 
 *Full name:* `apimd.parser.Parser`
+<a id="apimd-parser-parser"></a>
 
 | Decorators |
 |:----------:|
@@ -152,13 +166,13 @@ Get parent name with level.
 | `docstring` | `dict[str, str]` |
 | `imp` | `dict[str, set[str]]` |
 | `level` | `dict[str, int]` |
+| `link` | `bool` |
 | `root` | `dict[str, str]` |
 
 AST parser.
 
 Usage:
 ```python
->>> from apimd.parser import Parser
 >>> p = Parser()
 >>> with open("pkg_path", 'r') as f:
 >>>     p.parse('pkg_name', f.read())
@@ -168,6 +182,7 @@ Usage:
 #### Parser.api()
 
 *Full name:* `apimd.parser.Parser.api`
+<a id="apimd-parser-parser-api"></a>
 
 | self | root | node | * | prefix | return |
 |:----:|:----:|:----:|:---:|:------:|:------:|
@@ -180,6 +195,7 @@ Where `name` is the full name.
 #### Parser.class_api()
 
 *Full name:* `apimd.parser.Parser.class_api`
+<a id="apimd-parser-parser-class_api"></a>
 
 | self | root | name | bases | body | return |
 |:----:|:----:|:----:|:-----:|:----:|:------:|
@@ -190,6 +206,7 @@ Create class API.
 #### Parser.compile()
 
 *Full name:* `apimd.parser.Parser.compile`
+<a id="apimd-parser-parser-compile"></a>
 
 | self | return |
 |:----:|:------:|
@@ -200,6 +217,7 @@ Compile documentation.
 #### Parser.func_ann()
 
 *Full name:* `apimd.parser.Parser.func_ann`
+<a id="apimd-parser-parser-func_ann"></a>
 
 | self | root | args | * | has_self | cls_method | return |
 |:----:|:----:|:----:|:---:|:--------:|:----------:|:------:|
@@ -210,6 +228,7 @@ Function annotation table.
 #### Parser.func_api()
 
 *Full name:* `apimd.parser.Parser.func_api`
+<a id="apimd-parser-parser-func_api"></a>
 
 | self | root | name | node | returns | * | has_self | cls_method | return |
 |:----:|:----:|:----:|:----:|:-------:|:---:|:--------:|:----------:|:------:|
@@ -220,6 +239,7 @@ Create function API.
 #### Parser.globals()
 
 *Full name:* `apimd.parser.Parser.globals`
+<a id="apimd-parser-parser-globals"></a>
 
 | self | root | node | return |
 |:----:|:----:|:----:|:------:|
@@ -234,6 +254,7 @@ Set up globals:
 #### Parser.imports()
 
 *Full name:* `apimd.parser.Parser.imports`
+<a id="apimd-parser-parser-imports"></a>
 
 | self | root | node | return |
 |:----:|:----:|:----:|:------:|
@@ -244,6 +265,7 @@ Save import names.
 #### Parser.is_public()
 
 *Full name:* `apimd.parser.Parser.is_public`
+<a id="apimd-parser-parser-is_public"></a>
 
 | self | s | return |
 |:----:|:---:|:------:|
@@ -254,6 +276,7 @@ Check the name is public style or listed in `__all__`.
 #### Parser.load_docstring()
 
 *Full name:* `apimd.parser.Parser.load_docstring`
+<a id="apimd-parser-parser-load_docstring"></a>
 
 | self | root | m | return |
 |:----:|:----:|:---:|:------:|
@@ -264,6 +287,7 @@ Load docstring from the module.
 #### Parser.parse()
 
 *Full name:* `apimd.parser.Parser.parse`
+<a id="apimd-parser-parser-parse"></a>
 
 | self | root | script | return |
 |:----:|:----:|:------:|:------:|
@@ -274,6 +298,7 @@ Main parser of the entire module.
 #### Parser.resolve()
 
 *Full name:* `apimd.parser.Parser.resolve`
+<a id="apimd-parser-parser-resolve"></a>
 
 | self | root | node | self_ty | return |
 |:----:|:----:|:----:|:-------:|:------:|
@@ -285,6 +310,7 @@ Search and resolve global names in annotation.
 ### class Resolver
 
 *Full name:* `apimd.parser.Resolver`
+<a id="apimd-parser-resolver"></a>
 
 | Bases |
 |:-----:|
@@ -295,6 +321,7 @@ Annotation resolver.
 #### Resolver.\_\_init\_\_()
 
 *Full name:* `apimd.parser.Resolver.__init__`
+<a id="apimd-parser-resolver-__init__"></a>
 
 | self | root | alias | self_ty | return |
 |:----:|:----:|:-----:|:-------:|:------:|
@@ -306,6 +333,7 @@ Set root module, alias and generic self name.
 #### Resolver.visit_Attribute()
 
 *Full name:* `apimd.parser.Resolver.visit_Attribute`
+<a id="apimd-parser-resolver-visit_attribute"></a>
 
 | self | node | return |
 |:----:|:----:|:------:|
@@ -316,6 +344,7 @@ Remove `typing.*` prefix of annotation.
 #### Resolver.visit_Constant()
 
 *Full name:* `apimd.parser.Resolver.visit_Constant`
+<a id="apimd-parser-resolver-visit_constant"></a>
 
 | self | node | return |
 |:----:|:----:|:------:|
@@ -326,6 +355,7 @@ Check string is a name.
 #### Resolver.visit_Name()
 
 *Full name:* `apimd.parser.Resolver.visit_Name`
+<a id="apimd-parser-resolver-visit_name"></a>
 
 | self | node | return |
 |:----:|:----:|:------:|
@@ -336,6 +366,7 @@ Replace global names with its expression recursively.
 #### Resolver.visit_Subscript()
 
 *Full name:* `apimd.parser.Resolver.visit_Subscript`
+<a id="apimd-parser-resolver-visit_subscript"></a>
 
 | self | node | return |
 |:----:|:----:|:------:|
@@ -346,6 +377,7 @@ Implementation of PEP585 and PEP604.
 ### table()
 
 *Full name:* `apimd.parser.table`
+<a id="apimd-parser-table"></a>
 
 | *titles | items | return |
 |:-------:|:-----:|:------:|
@@ -365,6 +397,7 @@ Usage:
 ### walk_body()
 
 *Full name:* `apimd.parser.walk_body`
+<a id="apimd-parser-walk_body"></a>
 
 | body | return |
 |:----:|:------:|
@@ -373,6 +406,7 @@ Usage:
 Traverse around body and its simple definition scope.
 
 ## Module `apimd.pep585`
+<a id="apimd-pep585"></a>
 
 | Constants | Type |
 |:---------:|:----:|

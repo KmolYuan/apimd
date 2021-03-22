@@ -76,9 +76,9 @@ def _load_module(name: str, path: str, p: Parser) -> bool:
     return False
 
 
-def loader(root: str, pwd: str, level: int) -> str:
+def loader(root: str, pwd: str, link: bool, level: int) -> str:
     """Package searching algorithm."""
-    p = Parser(level)
+    p = Parser(link, level)
     for name, path in walk_packages(root, pwd):
         # Load its source or stub
         pure_py = False
@@ -111,6 +111,7 @@ def gen_api(
     pwd: Optional[str] = None,
     *,
     prefix: str = 'docs',
+    link: bool = True,
     level: int = 1,
     dry: bool = False
 ) -> Sequence[str]:
@@ -127,7 +128,7 @@ def gen_api(
     docs = []
     for title, name in root_names.items():
         logger.info(f"Load root: {name} ({title})")
-        doc = loader(name, _site_path(name), level)
+        doc = loader(name, _site_path(name), link, level)
         if not doc.strip():
             logger.warning(f"'{name}' can not be found")
             continue

@@ -39,7 +39,7 @@ apimd "Module Name=module_name"
 The first is the readable name of the package,
 and the second is the name used in import syntax.
 
-The output path can be chosen by "-d" or "--dir" option, default is `docs`.
+The output path can be chosen by `-d` or `--dir` option, default is `docs`.
 Multiple modules are supported either.
 
 ```bash
@@ -61,7 +61,7 @@ Basically, this compiler can extract docstrings and annotations from those "publ
 + Functions & Generators (support async version)
 + Classes and its methods
 
-According to PEP 8, "**public**" means a name can't start with underscore symbol "`_`",
+According to PEP 8, "**public**" means a name can't start with underscore symbol `_`,
 except magic methods. ([Naming Conventions])
 
 The names must be defined within the scope of module and class,
@@ -92,7 +92,7 @@ the API can be substituted into a short name, for example, change `a.b.c` to `a.
 ### Generic Self
 
 To avoid generic self-reference that is not easy to understand,
-the compiler introduce `Self` type concept from Rust language,
+the compiler introduce `Self` type concept from [Rust language],
 which means the first argument in class should be treated as it and its subclasses.
 
 ```python
@@ -108,7 +108,7 @@ If a method returns its self, in Python, it can be mark as:
 
 ```python
 class A:
-    _Self = typing.TypeVar('_Self', bounds='A')
+    _Self = typing.TypeVar('_Self', bound='A')
     def method(self: _Self) -> _Self:
         return self
     @classmethod
@@ -135,6 +135,16 @@ even it is only implemented in the future version.
 | [585] | Type Hinting Generics In Standard Collections |
 | [604] | Allow writing union types as X &#124; Y |
 
+### Section Links
+
+Since the converted title id will remove the period symbol,
+apimd will insert another HTML anchor id to help you refer to other public names in docstring.
+The anchor id is generated from the lowercase full name,
+and replace the periods `.` by hyphens `-`.
+For example, `aaa.AAA.bbb_Ccc` will become `aaa-aaa-bbb_ccc`.
+
+Use `--no-link` to prevent this function.
+
 ## Stubs
 
 If a module has a stub file (`.pyi`), the stub file will be loaded for annotations once again.
@@ -148,3 +158,4 @@ if `.py` file is not found.
 [526]: https://www.python.org/dev/peps/pep-0526/
 [585]: https://www.python.org/dev/peps/pep-0585/
 [604]: https://www.python.org/dev/peps/pep-0585/
+[Rust language]: https://www.rust-lang.org/

@@ -104,7 +104,6 @@ def interpret_mode(doc: str) -> Iterator[str]:
     r"""Replace doctest as markdown Python code.
 
     Usage:
-    >>> from apimd.parser import interpret_mode
     >>> '\n'.join(interpret_mode(">>> a = \"Hello\""))
     """
     keep = False
@@ -268,12 +267,12 @@ class Parser:
     """AST parser.
 
     Usage:
-    >>> from apimd.parser import Parser
     >>> p = Parser()
     >>> with open("pkg_path", 'r') as f:
     >>>     p.parse('pkg_name', f.read())
     >>> s = p.compile()
     """
+    link: bool = True
     b_level: int = 1
     level: dict[str, int] = field(default_factory=dict)
     doc: dict[str, str] = field(default_factory=dict)
@@ -289,7 +288,10 @@ class Parser:
 
     def parse(self, root: str, script: str) -> None:
         """Main parser of the entire module."""
-        self.doc[root] = '#' * self.b_level + "# Module `{}`\n\n"
+        self.doc[root] = '#' * self.b_level + "# Module `{}`"
+        if self.link:
+            self.doc[root] += "\n<a id=\"{}\"></a>"
+        self.doc[root] += '\n\n'
         self.level[root] = root.count('.') + 1
         self.imp[root] = set()
         self.root[root] = root
@@ -377,7 +379,10 @@ class Parser:
             self.doc[name] = f"{level} async {shirt_name}()\n\n"
         else:
             self.doc[name] = f"{level} class {shirt_name}\n\n"
-        self.doc[name] += "*Full name:* `{}`\n\n"
+        self.doc[name] += "*Full name:* `{}`"
+        if self.link:
+            self.doc[name] += "\n<a id=\"{}\"></a>"
+        self.doc[name] += '\n\n'
         decs = ['@' + self.resolve(root, d) for d in node.decorator_list]
         if decs:
             self.doc[name] += table("Decorators", items=map(code, decs))
@@ -564,7 +569,7 @@ class Parser:
         for name in sorted(self.doc, key=self.__names_cmp):
             if not self.is_public(name):
                 continue
-            doc = self.doc[name].format(name)
+            doc = self.doc[name].format(name, name.lower().replace('.', '-'))
             if name in self.imp:
                 doc += self.__get_const(name)
             if name in self.docstring:
