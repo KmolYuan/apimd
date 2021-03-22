@@ -54,7 +54,7 @@ def parent(name: str, *, level: int = 1) -> str:
 
 
 def is_magic(name: str) -> bool:
-    """Is magic name."""
+    """Check magic name."""
     name = name.rsplit('.', maxsplit=1)[-1]
     return name[:2] == name[-2:] == '__'
 
@@ -460,23 +460,23 @@ class Parser:
         for node in walk_body(body):
             if isinstance(node, AnnAssign) and isinstance(node.target, Name):
                 attr = node.target.id
-                if is_public_family(attr):
-                    mem[attr] = self.resolve(root, node.annotation)
                 if is_enum:
                     enums.append(attr)
+                elif is_public_family(attr):
+                    mem[attr] = self.resolve(root, node.annotation)
             elif (
                 isinstance(node, Assign)
                 and len(node.targets) == 1
                 and isinstance(node.targets[0], Name)
             ):
                 attr = node.targets[0].id
-                if is_public_family(attr):
+                if is_enum:
+                    enums.append(attr)
+                elif is_public_family(attr):
                     if node.type_comment is None:
                         mem[attr] = const_type(node.value)
                     else:
                         mem[attr] = node.type_comment
-                if is_enum:
-                    enums.append(attr)
             elif isinstance(node, Delete):
                 for d in node.targets:
                     if not isinstance(d, Name):
@@ -487,7 +487,7 @@ class Parser:
                         enums.remove(attr)
         if enums:
             self.doc[name] += table("Enums", items=enums)
-        if mem:
+        elif mem:
             self.doc[name] += table('Members', 'Type', items=(
                 (code(n), code(mem[n])) for n in sorted(mem)))
 

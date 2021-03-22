@@ -168,7 +168,7 @@ Escape underscore in names.
 |:----:|:------:|
 | `str` | `bool` |
 
-Is magic name.
+Check magic name.
 
 ### is\_public\_family()
 
